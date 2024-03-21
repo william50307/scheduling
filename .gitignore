@@ -1,3 +1,5 @@
 *.lp
 *.png
 *.log
+__pycache__
+test*

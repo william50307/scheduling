@@ -1,0 +1,40 @@
+heuristic : true
+saving_folder : 'imgs/heuritic'
+
+# job parameters
+job_distribution: 'normal'
+job_num: 20
+job_mu: 5
+job_sigma: 2 
+job_lb: null 
+job_ub: null
+
+# order parameters
+order_distribution: 'normal'
+order_num: 5
+order_mu: 5
+order_sigma: 2
+order_lb: null
+order_ub: null
+
+# processor parameters
+processor_num: 3
+speed:
+  - 1.25
+  - 1.5
+  - 1.75
+    
+base_time:
+  - 25
+  - 18
+  - 15
+
+fixed_charge:
+  - 25
+  - 36
+  - 45
+
+unit_cost:
+  - 2
+  - 4
+  - 6

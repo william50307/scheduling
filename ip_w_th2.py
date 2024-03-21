@@ -9,7 +9,6 @@ import random
 from typing import Union
 from collections import defaultdict
 
-
 def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], processors:dict[str, list[float]], image_name:str) -> None:
     jobs =  {'j'+str(j+1) : jobs[j] for j in range(len(jobs))}
     orders, job_in_order, w = gp.multidict(orders)
@@ -98,34 +97,52 @@ def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], proces
     print ("current objective value is %g"%m.objVal)
 
     ## extract the result
-    result = {}
     solution = m.getAttr('x', x)
     order_perm = m.getAttr('x', xo)
     order_time = m.getAttr('x', C)
     makespan = m.getAttr('x', L)
     aquisition_time = m.getAttr('x', phi)
 
+    order_seq = [0] * len(orders)
     print('order permutation:')
     for g in orders:
+        s = 0
         for gg in orders:
-            print(order_perm[g,gg], end=' ')
-        print()
-
+            s += order_perm[g,gg]
+        order_seq[int(len(orders)-1-s)] = g
+            #print(order_perm[g,gg], end=' ')
+        #print()
     print('order completion time :', order_time)
     print('maskspan of each processors :', makespan)
     print('aquisition_time :', aquisition_time)
+    print('order permutation :', order_seq)
 
     res = defaultdict(list)
+    processor_start_time = {p:0 for p in processors}
     for j in jobs:
         for i in processors:
             if solution[j,i] == 1:
-                
                 res['job'].append(j)
-                res['processor'].append(i)
                 res['process_time'].append(t[j,i])
+                res['processor'].append(i)
+                #res['start_time'].append(processor_start_time[i])        
+                processor_start_time[i] += res['process_time'][-1]
                 for k, v in job_in_order.items():
                     if j in v:
                         res['order'].append(k)
+    
+    start_time = [0] * len(res['job'])
+    for i in processors:
+        p_start = 0
+        for o in order_seq:
+            for idx,(p,oo) in enumerate(zip(res['processor'], res['order'])):
+                if i == p and o == oo:
+                    start_time[idx] = p_start
+                    p_start += res['process_time'][idx]
+
+    res['start_time'] = start_time
+
+    
     # for i in processors:
     #     for l in range(1, len(jobs)+1):
     #         print(f'start time of pressoor {i} at posiotn {l} :', start_time[i,l])
@@ -134,16 +151,16 @@ def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], proces
     print(pd.DataFrame(res))
 
     # draw gantt chart
-    draw_gannt_chart(result, orders, makespan, image_name)
+    draw_gannt_chart_ip(pd.DataFrame(res), orders, makespan, image_name, m.objVal, processors)
 
-def draw_gannt_chart(result : dict[str, dict[str, Union[str, float]]], orders:list[str], makespan:dict[str, int], image_name:str) -> None:
-    df = pd.DataFrame({ 'job': result.keys(),
-                        'processor': [result[j]['processor'] for j in result],
-                        'position': [result[j]['position'] for j in result],
-                        'process_time': [result[j]['process_time'] for j in result],
-                        'start_time': [ result[j]['start_time'] for j in result],
-                        'order' : [ result[j]['order'] for j in result],
-                        })
+def draw_gannt_chart_ip(df : dict[str, dict[str, Union[str, float]]], orders:list[str], makespan:dict[str, int], image_name:str, cost, processors) -> None:
+    # df = pd.DataFrame({ 'job': result.keys(),
+    #                     'processor': [result[j]['processor'] for j in result],
+    #                     'position': [result[j]['position'] for j in result],
+    #                     'process_time': [result[j]['process_time'] for j in result],
+    #                     'start_time': [ result[j]['start_time'] for j in result],
+    #                     'order' : [ result[j]['order'] for j in result],
+    #                     })
     
     fig, ax = plt.subplots()  
     barh_width = 2
@@ -151,6 +168,7 @@ def draw_gannt_chart(result : dict[str, dict[str, Union[str, float]]], orders:li
     xticks = np.arange(max(makespan.values()) + 1)
     colors = random.sample(cm.Accent.colors, len(orders))
     colors = {orders[i]:colors[i] for i in range(len(orders))}
+    ax.set_title(f'cost : {cost}')
     ax.set_ylim(0, 10)
     ax.set_yticks(yticks)
     ax.set_yticklabels(processors)
@@ -181,58 +199,58 @@ def draw_gannt_chart(result : dict[str, dict[str, Union[str, float]]], orders:li
     #     # ax.text(0.1, bar.get_y()+bar.get_height()/2, 'test', color = 'white', ha = 'left', va = 'center') 
     fig.savefig(image_name)
 
+if __name__ == "__main__":
+    jobs = [8,5,7,8,4,6,6,5]
 
-jobs = [8,5,7,8,4,6,6,5]
+    orders = {
+        'o1' : [{'j2','j4','j5'}, 10],
+        'o2' : [{'j3','j6'}, 8], 
+        'o3' : [{'j1','j7','j8'}, 7]
+    }
 
-orders = {
-    'o1' : [{'j2','j4','j5'}, 10],
-    'o2' : [{'j3','j6'}, 8], 
-    'o3' : [{'j1','j7','j8'}, 7]
-}
+    # unit cost, purchased cost, base time, speed
+    processors = {
+        "p1" : [25,15,10,2.1],
+        "p2" : [15,10,15,1.5],
+    }
 
-# unit cost, purchased cost, base time, speed
-processors = {
-    "p1" : [25,15,10,2.1],
-    "p2" : [15,10,15,1.5],
-}
-
-#order_delivery_ip(jobs, orders, processors, '8jobs_3orders_2processors.png')
-
-
-jobs = [4,5,9,10,4,10,6,5,2,3,12,6]
-
-orders = {
-    'o1' : [{'j4','j5','j11'}, 3],
-    'o2' : [{'j3','j6'}, 4], 
-    'o3' : [{'j1','j7','j8', 'j10'}, 5],
-    'o4' : [{'j2','j9', 'j12'}, 6]
-}
-
-processors = {
-    "p1" : [25,15,10,1.6],
-    "p2" : [15,10,15,1.3],
-    "p3" : [20,12,14,1.7],
-}
-
-order_delivery_ip(jobs, orders, processors, '12jobs_4orders_3processors.png')
+    #order_delivery_ip(jobs, orders, processors, '8jobs_3orders_2processors.png')
 
 
-jobs = [4,5,9,10,4,10,6,5,2,3,12,6,5,15,10]
+    jobs = [4,5,9,10,4,10,6,5,2,3,12,6]
 
-orders = {
-    'o1' : [{'j4','j5','j11'}, 3],
-    'o2' : [{'j3','j6'}, 4], 
-    'o3' : [{'j1','j7','j8', 'j10'}, 5],
-    'o4' : [{'j2','j9', 'j12'}, 6],
-    'o5' : [{'j13','j14', 'j15'}, 4]
-}
+    orders = {
+        'o1' : [{'j4','j5','j11'}, 3],
+        'o2' : [{'j3','j6'}, 4], 
+        'o3' : [{'j1','j7','j8', 'j10'}, 5],
+        'o4' : [{'j2','j9', 'j12'}, 6]
+    }
 
-processors = {
-    "p1" : [25,15,10,1.6],
-    "p2" : [15,10,15,1.3],
-    "p3" : [20,12,14,1.7],
-    "p4" : [18,11,12,1.9]
-}
+    processors = {
+        "p1" : [25,15,10,1.6],
+        "p2" : [15,10,15,1.3],
+        "p3" : [20,12,14,1.7],
+    }
+
+    order_delivery_ip(jobs, orders, processors, '12jobs_4orders_3processors.png')
+
+
+    jobs = [4,5,9,10,4,10,6,5,2,3,12,6,5,15,10]
+
+    orders = {
+        'o1' : [{'j4','j5','j11'}, 3],
+        'o2' : [{'j3','j6'}, 4], 
+        'o3' : [{'j1','j7','j8', 'j10'}, 5],
+        'o4' : [{'j2','j9', 'j12'}, 6],
+        'o5' : [{'j13','j14', 'j15'}, 4]
+    }
+
+    processors = {
+        "p1" : [25,15,10,1.6],
+        "p2" : [15,10,15,1.3],
+        "p3" : [20,12,14,1.7],
+        "p4" : [18,11,12,1.9]
+    }
 
 # order_delivery_ip(jobs, orders, processors, '15jobs_5orders_4processors.png')
 

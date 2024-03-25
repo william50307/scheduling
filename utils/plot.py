@@ -44,8 +44,4 @@ def draw_gannt_chart_ip(result : dict[str, dict[str, str|float]], orders:list[st
                         color='black',
                     )
 
-
-    # # ax.barh(y=df['processor'], width=df['process_time'], left=df['start_time'])
-    # # for bar, disease in zip(ax.patches, jobs):
-    #     # ax.text(0.1, bar.get_y()+bar.get_height()/2, 'test', color = 'white', ha = 'left', va = 'center') 
     fig.savefig(image_name)

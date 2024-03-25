@@ -66,7 +66,6 @@ class Processor():
 
     '''get cuurent maskspan'''
     def get_makesapn(self) -> int:
-        global jobs_load
         return sum(math.ceil(jobs_load[j] / self.s) for s in self.jobs.values() for j in s)
 
     '''the processors total cost'''
@@ -126,12 +125,13 @@ class OrderPerm():
             exit()
 
 class Solution():
-    def __init__(self, processors:dict[str:Processor], orders_perm:list[str]):
+    def __init__(self, processors:dict[str:Processor], orders_perm:list[str], alpha:float):
         self.processors = processors
         self.orders_perm = orders_perm
+        self.alpha = alpha
 
     def getCost(self):
-        return CostCalculator.cost(set(self.processors.values()), self.orders_perm)
+        return CostCalculator.cost(set(self.processors.values()), self.orders_perm, self.alpha)
 
     ''' used on tabu sarch, find all the job pairs which can be swaped'''
     def get_all_swap_pairs(self) -> list[tuple[tuple[str,str]]]:
@@ -160,9 +160,10 @@ class Solution():
                 
 
 class Heuristic():
-    def __init__(self, orders:dict[str:Order], processors:dict[str:Processor]):
+    def __init__(self, orders:dict[str:Order], processors:dict[str:Processor], alpha:float):
         self.orders = orders
         self.processors = processors
+        self.alpha = alpha
     '''
     list scheduling:
     select the processor which has earliest completion time
@@ -186,9 +187,8 @@ class Heuristic():
                     temp_p = p
             self.processors[temp_p].add(j)
         
-        cost = CostCalculator.cost(set(self.processors.values()), order_perm)
-        # return set(self.processors.values()), order_perm, cost
-        return Solution(self.processors, order_perm)
+
+        return Solution(self.processors, order_perm, self.alpha)
         
 
     def fbs(self, order_perm_type:str, job_perm_type:str) -> tuple[set[Processor], list[str], int]:
@@ -205,7 +205,7 @@ class Heuristic():
 
         while fbs_list:
             can_p = fbs_list.pop(0)
-            cur_cost = CostCalculator.cost(purchased_p, order_perm)
+            cur_cost = CostCalculator.cost(purchased_p, order_perm, self.alpha)
             min_cost = float('inf')
             flag = False
             while True:
@@ -221,7 +221,7 @@ class Heuristic():
                         temp_p.update((simu_p, can_p))
                         #print('current job:', j)
                         #can_p.print_jobs()
-                        cost = CostCalculator.cost(temp_p, order_perm)
+                        cost = CostCalculator.cost(temp_p, order_perm, self.alpha)
                         if cost < min_cost:
                             job = j
                             old_p = p
@@ -241,10 +241,10 @@ class Heuristic():
                         purchased_p.add(can_p)
                         break
                     else:
-                        return Solution({p.id : p for p in purchased_p}, order_perm)
+                        return Solution({p.id : p for p in purchased_p}, order_perm, self.alpha)
         
         # return purchased_p, order_perm, cur_cost
-        return Solution({p.id : p for p in purchased_p}, order_perm)
+        return Solution({p.id : p for p in purchased_p}, order_perm, self.alpha)
                 
     def bf(self, order_perm_type, job_perm_type):
         order_perm = OrderPerm.get_order_perm(self.orders, order_perm_type)
@@ -263,10 +263,10 @@ class Heuristic():
                     p.add(jobs.pop(0))
             if not jobs or not fbs_list:
                 # return purchased_p, CostCalculator.cost(purchased_p, order_perm)
-                return Solution({p.id : p for p in purchased_p}, order_perm)
+                return Solution({p.id : p for p in purchased_p}, order_perm, self.alpha)
             new_p = fbs_list.pop(0)
             while True:                
-                cur_cost = CostCalculator.cost(purchased_p ,order_perm)
+                cur_cost = CostCalculator.cost(purchased_p ,order_perm, self.alpha)
                 # find if there is switch can reduce the total cost
                 for p in purchased_p:   
                     for j in p.get_all_jobs():
@@ -274,7 +274,7 @@ class Heuristic():
                         p.remove(j)
                         simu_set = copy.deepcopy(purchased_p)
                         simu_set.add(new_p)
-                        cost = CostCalculator.cost(simu_set, order_perm)
+                        cost = CostCalculator.cost(simu_set, order_perm, self.alpha)
                         p.add(j)
                         if cost < cur_cost:
                             cur_cost = cost
@@ -288,7 +288,7 @@ class Heuristic():
                 else:
                     if not new_p.get_all_jobs():
                         # return purchased_p, cost
-                        return Solution({p.id : p for p in purchased_p}, order_perm)
+                        return Solution({p.id : p for p in purchased_p}, order_perm, self.alpha)
                     else:
                         break
 
@@ -334,15 +334,13 @@ class Tabusearch():
         res = []
         thr = random.random() * 100
         if thr <= k:
-            random.shuffle(self.sol.orders_perm)
             # switch order permutation
-        # job swap
-        # if self.alpha is None or thr < self.alpha:
+            random.shuffle(self.sol.orders_perm)
+        '''job swap'''
         for pair in sol.get_all_swap_pairs():
             new_sol = self.swap_job(sol, pair)
             res.append(new_sol)
-        # Insert
-        # if self.alpha is None or thr >= self.alpha:
+        '''Insert'''
         for pair in sol.get_all_insert_pairs():
             new_sol = self.insert_job(sol, pair)
             res.append(new_sol)
@@ -409,9 +407,9 @@ class Tabusearch():
         
 class CostCalculator():
     @staticmethod
-    def cost(processors:set[Processor], order_perm:list[str]) -> int:
+    def cost(processors:set[Processor], order_perm:list[str], alpha:float=0.5) -> int:
         finished_time = {}
-        total_cost = 0
+        acquisition_cost = 0
         for p in processors:
             fin = {}
             prev = 0
@@ -419,11 +417,12 @@ class CostCalculator():
                 fin[o] = prev + sum([math.ceil(jobs_load[j] / p.s) for j in p.jobs[o]])
                 prev = fin[o]
             finished_time[p.id] = fin 
-            total_cost += p.f + p.c * max(0, p.get_makesapn() - p.b)
+            acquisition_cost += p.f + p.c * max(0, p.get_makesapn() - p.b)
+        order_cost = 0
         order_finished = {o : max([finished_time[p.id][o] for p in processors]) for o in order_perm}
         for o in orders_info:
-            total_cost += order_finished[o] * orders_info[o]['weight']
-        return total_cost
+            order_cost += order_finished[o] * orders_info[o]['weight']
+        return alpha * acquisition_cost + (1-alpha) * order_cost
     
     @staticmethod
     def order_finish_time(processors:dict[str:Processor], order_id:str, order_perm:list[str]) -> int:
@@ -511,43 +510,16 @@ def op_init(orders_info:dict[str:dict[str:set, str:int]], processors_info:dict[s
 
 
 if __name__ == '__main__':
-    # jobs_load = {'j1' : 8, 'j2' : 5, 'j3' : 7, 'j4' : 8, 'j5' : 4, 'j6' : 6, 'j7' : 6, 'j8' : 5, 'j9':11, 'j10':9, 'j11':4, 'j12':8}
-    # orders_info = {
-    #     'o1' : {'jobs' : {'j4','j5','j11'}, 
-    #             'weight' : 3},
-    #     'o2' : {'jobs' : {'j3','j6'}, 
-    #             'weight' : 4}, 
-    #     'o3' : {'jobs' : {'j1','j7','j8','j10'},
-    #             'weight' : 5},
-    #     'o4' : {'jobs' : {'j2','j9','j12'},
-    #             'weight': 6}
-    # }
-    # # base_time, unit_cost, fixed_charge, speed
-    # processors_info = {
-    #     "p1" : [25,15,10,1.6],
-    #     "p2" : [15,10,15,1.3],
-    #     "p3" : [20,12,14,1.7],
-    # }
-    # # job mapping to order
-    # jobs_order= {j:o for o, dic in orders_info.items() for j in dic['jobs']} 
-
-
-    # # build order object list
-    # orders = {}
-    # for k, v in orders_info.items():
-    #     orders[k] = Order(v['jobs'], v['weight'], k)
-
-    # processors = {}
-    # for k, v in processors_info.items():
-    #     processors[k] = Processor(k, *v)
-
+ 
+    random.seed(12)
+    np.random.seed(12)
 
     args = args_parser()
     print(args)
     jobs_load, orders_info, processors_info, jobs_order = get_data(args, DataGenerator)
 
 
-    orders_perm = ['wml', 'ml', 'wp']
+    orders_perm = ['ml', 'wml', 'wp']
     jobs_perm = ['slf', 'llf']
     saving_prefix = args.saving_folder + '/' + f'{args.job_num}_{args.order_num}_{args.processor_num}'
     pathlib.Path(saving_prefix).mkdir(parents=True, exist_ok=True) 
@@ -555,7 +527,7 @@ if __name__ == '__main__':
     for op in orders_perm:
         for jp in jobs_perm:
             orders, processors = op_init(orders_info, processors_info)
-            heuristic = Heuristic(orders, processors)
+            heuristic = Heuristic(orders, processors, args.alpha)
             sol = heuristic.fbs(op, jp)
             draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_fbs.png', '')
 
@@ -565,7 +537,7 @@ if __name__ == '__main__':
             draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_fbs_tabuSearch.png', '')
 
             orders, processors = op_init(orders_info, processors_info)
-            heuristic = Heuristic(orders, processors)
+            heuristic = Heuristic(orders, processors, args.alpha)
             sol = heuristic.ls(op, jp)
             draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_ls.png', '')
 
@@ -575,7 +547,7 @@ if __name__ == '__main__':
             draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_ls_tabuSearch.png', '')
 
             orders, processors = op_init(orders_info, processors_info)
-            heuristic = Heuristic(orders, processors)
+            heuristic = Heuristic(orders, processors, args.alpha)
             sol = heuristic.ls(op, jp)
             draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_bf.png', '')
 
@@ -584,10 +556,12 @@ if __name__ == '__main__':
             sol = tabusearch.vnts()
             draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_bf_tabuSearch.png', '')
 
+
     # temp code
     print('start ip modeling')
     orders, processors = op_init(orders_info, processors_info)
     jobs = list(jobs_load.values())
     orders = {k:[v['jobs'], v['weight']] for k,v in orders_info.items()}
     processors = processors_info
-    order_delivery_ip(jobs, orders, processors, '20jobs_5orders_3processors.png')
+    
+    order_delivery_ip(jobs, orders, processors, args.alpha, '20jobs_5orders_3processors.png')

@@ -9,10 +9,10 @@ import random
 from typing import Union
 from collections import defaultdict
 
-def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], processors:dict[str, list[float]], image_name:str) -> None:
+def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], processors:dict[str, list[float]], alpha:float, image_name:str) -> None:
     jobs =  {'j'+str(j+1) : jobs[j] for j in range(len(jobs))}
     orders, job_in_order, w = gp.multidict(orders)
-    processors, u, f, b, s = gp.multidict(processors)
+    processors, b, u, f, s = gp.multidict(processors)
 
     # job process time in each processor
     t = {(j,p) : math.ceil(jl/ss) for j, jl in jobs.items() for p, ss in s.items()}
@@ -40,7 +40,9 @@ def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], proces
     for i in processors:
         y[i] = m.addVar(vtype=GRB.BINARY, name='y_'+i)
         L[i] = m.addVar(vtype=GRB.INTEGER, name='L_'+i)
-        phi[i] = m.addVar(vtype=GRB.INTEGER, name='Phi_'+i)
+        phi[i] = m.addVar(name='Phi_'+i)
+        aux[i] = m.addVar(vtype=GRB.INTEGER, name='aux_'+i)
+        diff[i] = m.addVar(vtype=GRB.INTEGER, name='diff_'+i)
 
     for g in orders:
         C[g] = m.addVar(vtype=GRB.INTEGER, name=g) 
@@ -50,7 +52,6 @@ def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], proces
     m.update()
 
     # obj 
-    alpha = 0.5
     m.setObjective(alpha * gp.quicksum(w[g] * C[g] for g in orders) + (1-alpha) * gp.quicksum(phi[i] for i in processors), sense=GRB.MINIMIZE)
 
     # constrains
@@ -61,11 +62,6 @@ def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], proces
         for i in processors:
             m.addConstr(y[i] >= x[j,i])
 
-    # for j in jobs:
-    #     for i in processors:
-    #         for l in range(1,len(jobs)):
-    #             m.addConstr(S[i,l+1] - S[i,l] >= x[j,i,l] * t[j,i])
-    
 
     for i in processors:
         m.addConstr(L[i] == gp.quicksum(x[j,i] * t[j,i] for j in jobs))
@@ -101,7 +97,7 @@ def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], proces
     order_perm = m.getAttr('x', xo)
     order_time = m.getAttr('x', C)
     makespan = m.getAttr('x', L)
-    aquisition_time = m.getAttr('x', phi)
+    aquisition_cost = m.getAttr('x', phi)
 
     order_seq = [0] * len(orders)
     print('order permutation:')
@@ -114,7 +110,7 @@ def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], proces
         #print()
     print('order completion time :', order_time)
     print('maskspan of each processors :', makespan)
-    print('aquisition_time :', aquisition_time)
+    print('aquisition_time :', aquisition_cost)
     print('order permutation :', order_seq)
 
     res = defaultdict(list)

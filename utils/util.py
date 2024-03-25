@@ -8,6 +8,7 @@ def args_parser() -> argparse.ArgumentParser:
     parser.add_argument("-c", "--config", type=str, default=None)
     parser.add_argument("--heuristic", type=bool, default=False)
     parser.add_argument("--saving_folder", type=str, default='imgs/heuristic')
+    parser.add_argument("--alpha", type=float, default=0.5)
 
     # job
     parser.add_argument("--job_distribution", type=str, default='normal')
@@ -43,7 +44,16 @@ def args_parser() -> argparse.ArgumentParser:
 
     return args
 
-
+'''
+use DataGenerator to get data
+return value:
+    jobs_load = {'j1' : 8, ...}
+    orders_info  = {'o1' : {'jobs' : {'j4','j5','j11'}, 'weight' : 3}, ...}
+    
+    # base_time, unit_cost, fixed_charge, speed
+    processors_info = { 'p1' : [25,15,10,1.6], ...}
+    jobs_order = {'j1' : 'o1', ...}
+'''
 def get_data(args, DataGenerator) -> tuple[dict[str:float], dict[str:dict[str:set|float], dict[str:list[float]]]]:
     data_generator = DataGenerator()
     data_generator.set_job_params(job_distribution=args.job_distribution, job_num=args.job_num, job_mu=args.job_mu, job_sigma=args.job_sigma)

@@ -24,21 +24,42 @@ class DataGenerator():
 
     def set_processo_parm(self, processor_num:int, speed:list[float], base_time:list[int], fixed_charge:list[int], unit_cost:list[int]):
         self.processor_num = processor_num
-        self.speed = speed
-        self.base_time = base_time
-        self.fixed_charge = fixed_charge
-        self.unit_cost = unit_cost
+        self.speed = speed[:processor_num]
+        self.base_time = base_time[:processor_num]
+        self.fixed_charge = fixed_charge[:processor_num]
+        self.unit_cost = unit_cost[:processor_num]
 
     def get_jobs(self) -> dict[str:float]:
-        loads = np.random.uniform(self.job_lb, self.job_ub, self.job_num) if self.job_load_distri=='uniform' \
-                                                                          else np.random.normal(self.job_mu, self.job_sigma, self.job_num)
+        if self.job_load_distri == 'uniform':
+            loads = np.random.uniform(self.job_lb, self.job_ub, self.job_num)
+        elif self.job_load_distri == 'unifrom_discrete':
+            loads = np.random.choice(np.arange(self.job_lb, self.job_ub+1), self.job_num)
+        elif self.job_load_distri == 'normal':
+            while True:
+                loads = np.random.normal(self.job_mu, self.job_sigma, self.job_num)
+                if (loads > 0).all():
+                    break
+        else:
+            print('no such distribution type')
+            exit()
         self.jobs_load = {'j'+str(i) : loads[i-1] for i in range(1,self.job_num+1)}
         return self.jobs_load
  
     def get_order(self) -> dict[dict[str:set|float]]:
         self.orders_info = {}
-        weights = np.random.uniform(self.order_lb, self.order_ub, self.order_num) if self.order_weight_distri == 'uniform' \
-                                                                                  else np.random.normal(self.order_mu, self.order_sigma, self.order_num)
+        if self.job_load_distri == 'uniform':
+            weights = np.random.uniform(self.order_lb, self.order_ub, self.order_num)
+        elif self.job_load_distri == 'unifrom_discrete':
+            weights = np.random.choice(np.arange(self.order_lb, self.order_ub+1), self.order_num)
+        elif self.job_load_distri == 'normal':
+            while True:
+                weights = np.random.normal(self.order_mu, self.order_sigma, self.order_num)
+                if (weights > 0).all():
+                    break 
+        else:
+            print('no such distribution type')
+            exit()
+
         for i in range(1, self.order_num+1):
             self.orders_info['o'+str(i)] = {'jobs' : set(), 'weight' : weights[i-1]}
 

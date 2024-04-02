@@ -7,163 +7,36 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
-from itertools import combinations
 from tqdm import tqdm
 import pathlib
 from utils.data_generation import DataGenerator
 from utils.util import args_parser, get_data
 from ip_w_th2 import order_delivery_ip
+from utils.components import Order, OrderPerm, Processor, CostCalculator, Solution
 
-
-class Order():
-    def __init__(self, jobs:list[str], weight:int, order_id:str):
-        self.id = order_id
-        self.weight = weight
-        self.jobs = jobs
-        self.jobs_slf = sorted(jobs, key=lambda x:jobs_load[x])
-        self.jobs_llf = sorted(jobs, key=lambda x:jobs_load[x], reverse=True)
-        self.job_mode = None 
-
-    def set_job_mode(self, job_mode:str) -> None:
-        if job_mode not in ['slf', 'llf']:
-            print('not a valid job mode for order')
-            exit()
-        self.job_mode = job_mode
-        if self.job_mode == 'slf':
-            self.jobs = self.jobs_slf
-        elif self.job_mode == 'llf':
-            self.jobs = self.jobs_llf
-
-    def sum_load(self) -> int:
-        return sum(jobs_load[j] for j in self.jobs)
-
-    def __str__(self):
-        return self.id
-    
-class Processor():
-    def __init__(self, id, base_time, unit_cost, fixed_charge, speed):
-        self.id = id
-        self.b = base_time
-        self.c = unit_cost
-        self.f = fixed_charge
-        self.s = speed 
-        self.jobs = defaultdict(set)
-
-    '''add single job into processor'''
-    def add(self, job:str) -> None:
-        self.jobs[jobs_order[job]].add(job)
-
-    '''remove single job from processor'''
-    def remove(self, job:str) -> None:
-        self.jobs[jobs_order[job]].remove(job)
-
-    def get_all_jobs(self) -> set:
-        return set(reduce(lambda x,y:x.union(y), self.jobs.values()))
-
-    '''add all jobs in that order into processor'''
-    def add_order(self, order:Order) -> None:
-        self.jobs[order.id] = self.jobs[order.id].union(order.jobs)
-
-    '''get cuurent maskspan'''
-    def get_makesapn(self) -> int:
-        return sum(math.ceil(jobs_load[j] / self.s) for s in self.jobs.values() for j in s)
-
-    '''the processors total cost'''
-    def cost(self) -> int:
-        return self.f + self.c * max(0, self.get_makesapn() - self.b)
-    
-    '''get order finished time in this processor'''
-    def getOrderFinishedTimeinP(self, order_id:str, order_perm:list[str]) -> int:
-        global jobs_load
-        process_time = 0
-        for o in order_perm:
-            for j in self.jobs[o]:
-                process_time += math.ceil(jobs_load[j] / self.s)
-            if o == order_id:
-                return process_time
-        
-    '''print the job orders'''
-    def print_jobs(self) -> None:
-        for o in self.jobs:
-            print(o, ":")
-            jobs = list(self.jobs[o])
-            print(' -> '.join(jobs))
-        return
-
-class OrderPerm():
-    '''
-    the orders are in the decreasing order of weight (w_g)
-    '''
-    @staticmethod
-    def weight_priority(orders) -> list[str]:
-        return [o.id for o in sorted(orders.values(), key=lambda x:x.weight, reverse=True)]
-
-    '''
-    the orders are in ascending order of summation of all jobs load in each order
-    '''
-    @staticmethod
-    def minimum_load(orders) -> list[str]:
-        return [o.id for o in sorted(orders.values(), key=lambda x:x.sum_load())]
-
-    '''
-    the orders are ordered in the non-decreasing order of wg/sum(load )
-    '''
-    @staticmethod
-    def weight_minimum_load(orders) -> list[str]:
-        return [o.id for o in sorted(orders.values(), key=lambda x:x.weight / x.sum_load())]
-
-    @classmethod
-    def get_order_perm(cls, orders, mode) -> list[str]:
-        if mode == 'wp':
-            return cls.weight_priority(orders)
-        elif mode == 'ml':
-            return cls.minimum_load(orders)
-        elif mode == 'wml':
-            return cls.weight_minimum_load(orders)
-        else:
-            print(f'ERROR : there is no mode named {mode} in order permutation')
-            exit()
-
-class Solution():
-    def __init__(self, processors:dict[str:Processor], orders_perm:list[str], alpha:float):
-        self.processors = processors
-        self.orders_perm = orders_perm
-        self.alpha = alpha
-
-    def getCost(self):
-        return CostCalculator.cost(set(self.processors.values()), self.orders_perm, self.alpha)
-
-    ''' used on tabu sarch, find all the job pairs which can be swaped'''
-    def get_all_swap_pairs(self) -> list[tuple[tuple[str,str]]]:
-        res = []
-        orders = orders_info.keys()
-        for p1, p2 in combinations(self.processors.keys(), 2):
-            for o in orders:
-                for j in self.processors[p1].jobs[o]:
-                    for jj in self.processors[p2].jobs[o]:
-                        res.append(((p1,j),(p2,jj))) 
-        return res
-
-    '''
-    used on tabu search, find all the job pairs which can be inserted
-    return value is a tuple contains three elements : [job name, processor remove from, processor insert into]
-    '''
-    def get_all_insert_pairs(self) -> list[tuple[str, str, str]]:
-        res = []
-        for p1, p2 in combinations(self.processors.keys(), 2):
-            for o in orders:
-                for j in self.processors[p1].jobs[o]:
-                    res.append((j, p1, p2))
-                for j in self.processors[p2].jobs[o]:
-                    res.append((j, p2, p1))
-        return res
-                
 
 class Heuristic():
-    def __init__(self, orders:dict[str:Order], processors:dict[str:Processor], alpha:float):
-        self.orders = orders
-        self.processors = processors
+    def __init__(self, 
+                #  orders_info:dict[str:dict[str:set, str:int]], 
+                #  processors_info:dict[str:list[float]],
+                #  jobs_load:dict[str:str],
+                #  jobs_order:dict[str:str],
+                 helper_data:dict[str:dict],
+                 alpha:float=0.5):
+        
         self.alpha = alpha
+        self.helper_data = helper_data
+        self.orders = {}
+        for k, v in helper_data['orders_info'].items():
+            self.orders[k] = Order(v['jobs'], v['weight'], k, helper_data['jobs_load'])
+
+        self.processors = {}
+        for k, v in helper_data['processors_info'].items():
+            self.processors[k] = Processor(k, *v, helper_data['jobs_load'], helper_data['jobs_order'])
+        
+        self.cost_calculator = CostCalculator(helper_data['jobs_load'], helper_data['orders_info'])
+
+
     '''
     list scheduling:
     select the processor which has earliest completion time
@@ -181,14 +54,14 @@ class Heuristic():
             for p in self.processors:
                 processors = copy.deepcopy(self.processors)
                 processors[p].add(j)
-                t = CostCalculator.order_finish_time(processors, jobs_order[j], order_perm)
+                t = self.cost_calculator.order_finish_time(processors, self.helper_data['jobs_order'][j], order_perm)
                 if t < f_time:
                     f_time = t
                     temp_p = p
             self.processors[temp_p].add(j)
         
 
-        return Solution(self.processors, order_perm, self.alpha)
+        return Solution(self.processors, order_perm, self.cost_calculator, self.alpha)
         
 
     def fbs(self, order_perm_type:str, job_perm_type:str) -> tuple[set[Processor], list[str], int]:
@@ -205,7 +78,7 @@ class Heuristic():
 
         while fbs_list:
             can_p = fbs_list.pop(0)
-            cur_cost = CostCalculator.cost(purchased_p, order_perm, self.alpha)
+            cur_cost = self.cost_calculator.cost(purchased_p, order_perm, self.alpha)
             min_cost = float('inf')
             flag = False
             while True:
@@ -221,7 +94,7 @@ class Heuristic():
                         temp_p.update((simu_p, can_p))
                         #print('current job:', j)
                         #can_p.print_jobs()
-                        cost = CostCalculator.cost(temp_p, order_perm, self.alpha)
+                        cost = self.cost_calculator.cost(temp_p, order_perm, self.alpha)
                         if cost < min_cost:
                             job = j
                             old_p = p
@@ -241,56 +114,71 @@ class Heuristic():
                         purchased_p.add(can_p)
                         break
                     else:
-                        return Solution({p.id : p for p in purchased_p}, order_perm, self.alpha)
+                        return Solution({p.id : p for p in purchased_p}, order_perm, self.cost_calculator, self.alpha)
         
         # return purchased_p, order_perm, cur_cost
-        return Solution({p.id : p for p in purchased_p}, order_perm, self.alpha)
-                
-    def bf(self, order_perm_type, job_perm_type):
+        return Solution({p.id : p for p in purchased_p}, order_perm, self.cost_calculator, self.alpha)
+            
+    def bf(self, order_perm_type:list[str], job_perm_type:list[str]) -> Solution:
         order_perm = OrderPerm.get_order_perm(self.orders, order_perm_type)
-        jobs = []
+        jobs = defaultdict(list)
+        jobs_seq = []
         for o in order_perm:
             self.orders[o].set_job_mode(job_perm_type)
-            jobs += self.orders[o].jobs
-
-        fbs_list = sorted(self.processors, key=lambda p:p.f/p.b/p.s)
-        p = fbs_list.pop(0)
-        purchased_p = {p}
+            jobs[o] = self.orders[o].jobs.copy()
         
-        while True:
-            for p in purchased_p:
-                while p.get_makesapn() < p.base_time and jobs:
-                    p.add(jobs.pop(0))
-            if not jobs or not fbs_list:
-                # return purchased_p, CostCalculator.cost(purchased_p, order_perm)
-                return Solution({p.id : p for p in purchased_p}, order_perm, self.alpha)
-            new_p = fbs_list.pop(0)
-            while True:                
-                cur_cost = CostCalculator.cost(purchased_p ,order_perm, self.alpha)
-                # find if there is switch can reduce the total cost
-                for p in purchased_p:   
-                    for j in p.get_all_jobs():
-                        new_p.add(j)
-                        p.remove(j)
-                        simu_set = copy.deepcopy(purchased_p)
-                        simu_set.add(new_p)
-                        cost = CostCalculator.cost(simu_set, order_perm, self.alpha)
-                        p.add(j)
-                        if cost < cur_cost:
-                            cur_cost = cost
-                            to_remove_p = p
-                            can_j = j
+        while reduce(lambda x,y:x+y , jobs.values()) != []:
+            for o in order_perm:
+                if jobs[o] != []:
+                    jobs_seq.append(jobs[o].pop(0))
+    
+        assert set(jobs_seq) == set(self.helper_data['jobs_load'].keys()), 'missing some jobs'
+        
+        purchased_p = set()
+        fbs_list = sorted(self.processors.values(), key=lambda p:p.f/p.b/p.s)
+        while jobs_seq and fbs_list:
+            p = fbs_list.pop(0)
+            while p.get_makespan() < p.b and jobs_seq:
+                p.add(jobs_seq.pop(0))
+            purchased_p.add(p)
+
+        if not jobs_seq:
+            cur_sol = Solution({p.id : p for p in purchased_p}, order_perm, self.cost_calculator, self.alpha)
+            while True:
+                min_cost = cur_sol.getCost()
+                for pair in cur_sol.get_all_swap_pairs():
+                    new_sol = Tabusearch.swap_job(cur_sol, pair)
+                    if new_sol.getCost() < min_cost:
+                        min_cost = new_sol.getCost() 
+                        can_sol = new_sol
                 
-                if can_j:
-                    new_p.add(can_j)
-                    to_remove_p.remove(can_j)
-                    purchased_p.add(new_p)
+                for pair in cur_sol.get_all_insert_pairs():
+                    new_sol = Tabusearch.insert_job(cur_sol, pair)
+                    if new_sol.getCost() < min_cost:
+                        min_cost = new_sol.getCost()
+                        can_sol = new_sol
+                
+                if min_cost < cur_sol.getCost():
+                    cur_sol = can_sol
                 else:
-                    if not new_p.get_all_jobs():
-                        # return purchased_p, cost
-                        return Solution({p.id : p for p in purchased_p}, order_perm, self.alpha)
-                    else:
-                        break
+                    return cur_sol
+        else:
+            # find a best processors to place
+            while jobs_seq:
+                j = jobs_seq.pop()
+                min_cost = float('inf')
+                for p in purchased_p:
+                    simu_p = copy.deepcopy(p)
+                    simu_p.add(j)
+                    temp_p = purchased_p.copy()
+                    temp_p.remove(p)
+                    temp_p.add(simu_p)
+                    cost = self.cost_caculator.cost(temp_p, order_perm, self.alpha)
+                    if cost < min_cost:
+                        min_cost = cost
+                        can_p = p 
+                can_p.add(j)
+            return Solution({p.id : p for p in purchased_p}, order_perm, self.cost_calculator, self.alpha)
 
 class TabuList():
     def __init__(self, tabu_len=7):
@@ -313,7 +201,8 @@ class Tabusearch():
         self.tabu_list = tabu_list
 
     '''swap two jobs'''
-    def swap_job(self, sol:Solution, pair:tuple[tuple[str,str]]) -> Solution:
+    @staticmethod
+    def swap_job(sol:Solution, pair:tuple[tuple[str,str]]) -> Solution:
         (p1,j1), (p2,j2) = pair
         new_sol = copy.deepcopy(sol)
         new_sol.processors[p1].remove(j1)
@@ -323,7 +212,8 @@ class Tabusearch():
         return new_sol
     
     '''remove a job from processor and add to another'''
-    def insert_job(self, sol, pair:tuple[str,str,str]) -> Solution:
+    @staticmethod
+    def insert_job(sol, pair:tuple[str,str,str]) -> Solution:
         j, p1, p2 = pair
         new_sol = copy.deepcopy(sol)
         new_sol.processors[p1].remove(j)
@@ -382,7 +272,7 @@ class Tabusearch():
         current_sol = self.sol
  
 
-        for _ in tqdm(range(self.iters)):
+        for _ in range(self.iters):
             neighbors = self.get_neighbors(current_sol)
             min_cost = float('inf')
             best_neighbor = None
@@ -404,32 +294,6 @@ class Tabusearch():
         print(best_sol.getCost())
         return best_sol
     
-        
-class CostCalculator():
-    @staticmethod
-    def cost(processors:set[Processor], order_perm:list[str], alpha:float=0.5) -> int:
-        finished_time = {}
-        acquisition_cost = 0
-        for p in processors:
-            fin = {}
-            prev = 0
-            for o in order_perm:
-                fin[o] = prev + sum([math.ceil(jobs_load[j] / p.s) for j in p.jobs[o]])
-                prev = fin[o]
-            finished_time[p.id] = fin 
-            acquisition_cost += p.f + p.c * max(0, p.get_makesapn() - p.b)
-        order_cost = 0
-        order_finished = {o : max([finished_time[p.id][o] for p in processors]) for o in order_perm}
-        for o in orders_info:
-            order_cost += order_finished[o] * orders_info[o]['weight']
-        return alpha * acquisition_cost + (1-alpha) * order_cost
-    
-    @staticmethod
-    def order_finish_time(processors:dict[str:Processor], order_id:str, order_perm:list[str]) -> int:
-        return max([p.getOrderFinishedTimeinP(order_id, order_perm) for p in processors.values()])
-    
-
-# def draw_gannt_chart(processors:set[Processor], orders_perm:list[str], image_name:str, title:str, cost:int) -> None:
 def draw_gannt_chart(sol:Solution, image_name:str, title:str) -> None:
     infos = defaultdict(list)
     for p in sol.processors.values():
@@ -448,7 +312,7 @@ def draw_gannt_chart(sol:Solution, image_name:str, title:str) -> None:
     fig, ax = plt.subplots()  
     barh_width = 2
     yticks = np.linspace(0, 10,num=len(sol.processors)+2)[1:-1]
-    xticks = np.arange(max([p.get_makesapn() for p in sol.processors.values()]) + 1)
+    xticks = np.arange(max([p.get_makespan() for p in sol.processors.values()]) + 1)
     colors = random.sample(cm.Accent.colors, len(sol.orders_perm))
     colors = {sol.orders_perm[i]:colors[i] for i in range(len(sol.orders_perm))}
     ax.set_title(title + f'cost : {sol.getCost()}')
@@ -482,86 +346,75 @@ def draw_gannt_chart(sol:Solution, image_name:str, title:str) -> None:
     fig.savefig(image_name)
 
 
-def data_init() -> tuple[dict[str:float], dict[str:dict[str:set|float], dict[str:list[float]]]]:
-    data_generator = DataGenerator()
-    data_generator.set_job_params('normal', job_num=20, job_mu=5, job_sigma=2)
-    data_generator.set_order_parm('normal', order_num=5, order_mu=5, order_sigma=2)
-    data_generator.set_processo_parm(processor_num=3, speed=[1.25,1.5,1.75], base_time=[25,18,15], fixed_charge=[25,36,45], unit_cost=[2,4,6])
-    jobs_load = data_generator.get_jobs()
-    orders_info = data_generator.get_order()
-    processors_info = data_generator.get_processors()
-
-    # job mapping to order
-    jobs_order= {j:o for o, dic in orders_info.items() for j in dic['jobs']} 
-
-    return jobs_load, orders_info, processors_info, jobs_order
-
-'''initilize orders and processors objects'''
-def op_init(orders_info:dict[str:dict[str:set, str:int]], processors_info:dict[str:list[float]]) -> tuple[dict[str:Order],dict[str:Processor]]:
-    orders = {}
-    for k, v in orders_info.items():
-        orders[k] = Order(v['jobs'], v['weight'], k)
-
-    processors = {}
-    for k, v in processors_info.items():
-        processors[k] = Processor(k, *v)
-
-    return orders, processors
-
-
 if __name__ == '__main__':
  
-    random.seed(12)
-    np.random.seed(12)
-
     args = args_parser()
-    print(args)
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+
+
     jobs_load, orders_info, processors_info, jobs_order = get_data(args, DataGenerator)
+    min_calculate = defaultdict(lambda:0)
 
+    for i in tqdm(range(args.instance_num)):
+        orders_perm = ['ml', 'wml', 'wp']
+        jobs_perm = ['slf', 'llf']
+        draw = True if i == 0 else False
+        saving_prefix = args.saving_folder + '/' + f'{args.job_num}_{args.order_num}_{args.processor_num}'
+        pathlib.Path(saving_prefix).mkdir(parents=True, exist_ok=True) 
+        res = defaultdict(list) 
+        for op in orders_perm:
+            for jp in jobs_perm:
+                orders, processors = op_init(orders_info, processors_info)
+                heuristic = Heuristic(orders, processors, args.alpha)
+                sol = heuristic.fbs(op, jp)
+                if draw:
+                    draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_fbs.png', '')
+                res[(op, jp, 'fbs')].append(sol.getCost())
 
-    orders_perm = ['ml', 'wml', 'wp']
-    jobs_perm = ['slf', 'llf']
-    saving_prefix = args.saving_folder + '/' + f'{args.job_num}_{args.order_num}_{args.processor_num}'
-    pathlib.Path(saving_prefix).mkdir(parents=True, exist_ok=True) 
+                # tabulist = TabuList()
+                # tabusearch = Tabusearch(sol, tabulist, 0.3)
+                # sol = tabusearch.vnts()
+                # if draw:
+                #     draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_fbs_tabuSearch.png', '')
 
-    for op in orders_perm:
-        for jp in jobs_perm:
-            orders, processors = op_init(orders_info, processors_info)
-            heuristic = Heuristic(orders, processors, args.alpha)
-            sol = heuristic.fbs(op, jp)
-            draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_fbs.png', '')
+                orders, processors = op_init(orders_info, processors_info)
+                heuristic = Heuristic(orders, processors, args.alpha)
+                sol = heuristic.ls(op, jp)
+                if draw:
+                    draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_ls.png', '')
+                res[(op, jp, 'ls')].append(sol.getCost())
 
-            tabulist = TabuList()
-            tabusearch = Tabusearch(sol, tabulist, 0.3)
-            sol = tabusearch.vnts()
-            draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_fbs_tabuSearch.png', '')
+                # tabulist = TabuList()
+                # tabusearch = Tabusearch(sol, tabulist, 0.3)
+                # sol = tabusearch.vnts()
+                # if draw:
+                #     draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_ls_tabuSearch.png', '')
 
-            orders, processors = op_init(orders_info, processors_info)
-            heuristic = Heuristic(orders, processors, args.alpha)
-            sol = heuristic.ls(op, jp)
-            draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_ls.png', '')
+                orders, processors = op_init(orders_info, processors_info)
+                heuristic = Heuristic(orders, processors, args.alpha)
+                sol = heuristic.bf(op, jp)
+                if draw:
+                    draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_bf.png', '')
+                res[(op, jp, 'bf')].append(sol.getCost())
 
-            tabulist = TabuList()
-            tabusearch = Tabusearch(sol, tabulist, 0.3)
-            sol = tabusearch.vnts()
-            draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_ls_tabuSearch.png', '')
+                # tabulist = TabuList()
+                # tabusearch = Tabusearch(sol, tabulist, 0.3)
+                # sol = tabusearch.vnts()
+                # if draw:
+                #     draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_bf_tabuSearch.png', '')
 
-            orders, processors = op_init(orders_info, processors_info)
-            heuristic = Heuristic(orders, processors, args.alpha)
-            sol = heuristic.ls(op, jp)
-            draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_bf.png', '')
+        # min_calculate[min(res, key=res.get)] += 100 / args.instance_num
+                    
+    # print(min_calculate)
+    # for k in res:
+    #     print(f'{k} mean csot :', sum(res[k]) / len(res[k]))
 
-            tabulist = TabuList()
-            tabusearch = Tabusearch(sol, tabulist, 0.3)
-            sol = tabusearch.vnts()
-            draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_bf_tabuSearch.png', '')
+    # # temp code
+    # # print('start ip modeling')
+    # orders, processors = op_init(orders_info, processors_info)
+    # jobs = list(jobs_load.values())
+    # orders = {k:[v['jobs'], v['weight']] for k,v in orders_info.items()}
+    # processors = processors_info
 
-
-    # temp code
-    print('start ip modeling')
-    orders, processors = op_init(orders_info, processors_info)
-    jobs = list(jobs_load.values())
-    orders = {k:[v['jobs'], v['weight']] for k,v in orders_info.items()}
-    processors = processors_info
-    
-    order_delivery_ip(jobs, orders, processors, args.alpha, '20jobs_5orders_3processors.png')
+    # order_delivery_ip(jobs, orders, processors, args.alpha, '20jobs_5orders_3processors.png')

@@ -63,7 +63,12 @@ class DataGenerator():
         for i in range(1, self.order_num+1):
             self.orders_info['o'+str(i)] = {'jobs' : set(), 'weight' : weights[i-1]}
 
-        for j in self.jobs_load:
+        # random assign one to each order
+        jobs = random.sample(list(self.jobs_load.keys()), k=len(self.orders_info))
+        for i, o in enumerate(self.orders_info):
+            self.orders_info[o]['jobs'].add(jobs[i])
+
+        for j in set(self.jobs_load.keys()) - set(jobs):
             order_id = 'o'+str(random.randint(1, self.order_num))
             self.orders_info[order_id]['jobs'].add(j)
 

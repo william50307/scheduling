@@ -2,6 +2,8 @@ from collections import defaultdict
 from functools import reduce
 from itertools import combinations
 import math
+import copy
+from typing_extensions import Self
 
 class Order():
     def __init__(self, jobs:list[str], weight:int, order_id:str, jobs_load:dict[str:int]):
@@ -166,6 +168,17 @@ class Solution():
                     for jj in self.processors[p2].jobs[o]:
                         res.append(((p1,j),(p2,jj))) 
         return res
+    
+    '''swap two jobs'''
+    def swap_job(self, pair:tuple[tuple[str,str]]) -> Self: 
+        (p1,j1), (p2,j2) = pair
+        new_sol = copy.deepcopy(self)
+        new_sol.processors[p1].remove(j1)
+        new_sol.processors[p1].add(j2)
+        new_sol.processors[p2].remove(j2)
+        new_sol.processors[p2].add(j1)
+        return new_sol
+    
 
     '''
     used on tabu search, find all the job pairs which can be inserted
@@ -180,4 +193,14 @@ class Solution():
                 for j in self.processors[p2].jobs[o]:
                     res.append((j, p2, p1))
         return res
+
+
+    '''remove a job from processor and add to another'''
+    def insert_job(self, pair:tuple[str,str,str]) -> Self:
+        j, p1, p2 = pair
+        new_sol = copy.deepcopy(self)
+        new_sol.processors[p1].remove(j)
+        new_sol.processors[p2].add(j)
+        return new_sol     
+
                 

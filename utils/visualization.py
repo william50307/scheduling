@@ -29,7 +29,7 @@ def draw_gannt_chart(jobs_load:dict[str:int], sol:Solution, image_name:str, titl
     xticks = np.arange(max([p.get_makespan() for p in sol.processors.values()]) + 1)
     colors = random.sample(cm.Accent.colors, len(sol.orders_perm))
     colors = {sol.orders_perm[i]:colors[i] for i in range(len(sol.orders_perm))}
-    ax.set_title(title + f'cost : {sol.getCost()}')
+    ax.set_title(title + '\n' + f'cost : {sol.getCost()}')
     ax.set_ylim(0, 10)
     ax.set_yticks(yticks)
     ax.set_yticklabels([p.id for p in sol.processors.values()])

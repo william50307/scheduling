@@ -9,16 +9,18 @@ import random
 from typing import Union
 from collections import defaultdict
 from loguru import logger
+import matplotlib.colors as mcolors
 
 def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], processor_info:dict[str, list[float]], alpha:float, image_name:str) -> None:
-    jobs =  {'j'+str(j+1) : jobs[j] for j in range(len(jobs))}
+    logger.debug(jobs)
+    logger.debug(orders)
+    
+    orders = {k:[v['jobs'], v['weight']] for k,v in orders.items()}
     orders, job_in_order, w = gp.multidict(orders)
     processors, b, u, f, s = gp.multidict(processor_info)
 
     # job process time in each processor
     t = {(j,p) : math.ceil(jl/ss) for j, jl in jobs.items() for p, ss in s.items()}
-
-    logger.debug(f'job process time : {t}')
 
     m = gp.Model("parallel_order")
     x = {}
@@ -36,6 +38,7 @@ def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], proces
             x[j,i] = m.addVar(vtype=GRB.BINARY, name=f"x_{j}_{i}")
             for g in orders:
                 for gg in orders:
+                # z[j,i,g] = m.addVar(vtype=GRB.BINARY, name=f"z_{j}_{i}_{g}")
                     z[j,i,g,gg] = m.addVar(vtype=GRB.BINARY, name=f"z_{j}_{i}_{g}_{gg}")
 
     for i in processors:
@@ -73,6 +76,7 @@ def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], proces
     for g in orders:
         for i in processors:
                 m.addConstr(C[g] >= gp.quicksum(gp.quicksum(z[j,i,k,g] * t[j,i] for j in job_in_order[k]) for k in orders) + gp.quicksum(x[jj,i] * t[jj,i] for jj in job_in_order[g]))
+                #m.addConstr(C[g] >= gp.quicksum(gp.quicksum(z[j,i,g] * t[j,i] for j in job_in_order[k]) for k in orders if k!=g) + gp.quicksum(x[jj,i] * t[jj,i] for jj in job_in_order[g]))
     
     for i in processors:    
         for k in orders:
@@ -80,6 +84,7 @@ def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], proces
                 if k != g:
                     for j in job_in_order[k]:
                         m.addConstr(z[j,i,k,g] >= 1 - (2-xo[k,g]-x[j,i]) * M)
+                        #m.addConstr(z[j,i,g] >= 1 - (2-xo[k,g]-x[j,i]) * M)
 
     m.Params.TimeLimit = 1200
     m.optimize()
@@ -150,11 +155,13 @@ def draw_gannt_chart_ip(df : dict[str, dict[str, Union[str, float]]], orders:lis
     #                     'order' : [ result[j]['order'] for j in result],
     #                     })
     
+    fig_size = 10
     fig, ax = plt.subplots()  
-    barh_width = 2
-    yticks = np.linspace(0, 10,num=len(processors)+2)[1:-1]
+    barh_width = fig_size // (len(processors) + 1)
+    yticks = np.linspace(0, fig_size,num=len(processors)+2)[1:-1]
     xticks = np.arange(max(makespan.values()) + 1)
-    colors = random.sample(cm.Accent.colors, len(orders))
+    # colors = random.sample(cm.Accent.colors, len(orders))
+    colors = list(mcolors.TABLEAU_COLORS.values())
     colors = {orders[i]:colors[i] for i in range(len(orders))}
     ax.set_title(f'cost : {cost}')
     ax.set_ylim(0, 10)

@@ -2,6 +2,7 @@ from collections import defaultdict
 from functools import reduce
 import copy
 from utils.components import Order, OrderPerm, Processor, CostCalculator, Solution
+from loguru import logger
 
 
 class Heuristic():
@@ -18,6 +19,16 @@ class Heuristic():
             self.processors[k] = Processor(k, *v, helper_data['jobs_load'], helper_data['jobs_order'])
         
         self.cost_calculator = CostCalculator(helper_data['jobs_load'], helper_data['orders_info'])
+
+    def run_heuristic(self, order_perm_type:str, job_perm_type:str, mode:str) -> Solution:
+        if mode == 'ls':
+            return self.ls(order_perm_type=order_perm_type, job_perm_type=job_perm_type)
+        elif mode == 'fbs':
+            return self.fbs(order_perm_type=order_perm_type, job_perm_type=job_perm_type)
+        elif mode == 'bf':
+            return self.bf(order_perm_type=order_perm_type, job_perm_type=job_perm_type)
+        else:
+            logger.error(f'heuristic : {mode} is not exist')
 
     '''
     list scheduling:
@@ -155,7 +166,7 @@ class Heuristic():
                     temp_p = purchased_p.copy()
                     temp_p.remove(p)
                     temp_p.add(simu_p)
-                    cost = self.cost_caculator.cost(temp_p, order_perm, self.alpha)
+                    cost = self.cost_calculator.cost(temp_p, order_perm, self.alpha)
                     if cost < min_cost:
                         min_cost = cost
                         can_p = p 

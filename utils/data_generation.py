@@ -1,5 +1,6 @@
 import numpy as np
 import random
+from loguru import logger
 
 # job load : U[1,10], U[1,50], U[1,100]
 # order, order weigh
@@ -68,7 +69,9 @@ class DataGenerator():
         for i, o in enumerate(self.orders_info):
             self.orders_info[o]['jobs'].add(jobs[i])
 
-        for j in set(self.jobs_load.keys()) - set(jobs):
+        reamaining_jobs = [j for j in self.jobs_load.keys() if j not in jobs]
+        logger.debug(f'remaining job : {reamaining_jobs}')
+        for j in reamaining_jobs:
             order_id = 'o'+str(random.randint(1, self.order_num))
             self.orders_info[order_id]['jobs'].add(j)
 

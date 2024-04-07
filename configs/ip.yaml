@@ -1,0 +1,72 @@
+heuristic : false
+heuristic_method:
+  - 'fbs'
+  - 'bf'
+  - 'ls'
+ip : true
+saving_folder : 'imgs/heuristic'
+alpha: 0.5
+seed: 20
+instance_num: 30
+draw : false
+
+
+# job parameters
+job_distribution: 'normal'
+job_num:
+  - 20
+  # - 30
+  # - 40
+  # - 50
+
+job_mu: 4
+job_sigma: 1.6 
+job_lb: 3 
+job_ub: 8
+
+# order parameters
+order_distribution: 'normal'
+order_num:
+  #- 3
+  - 5
+  # - 7
+  # - 9
+
+order_mu: 5
+order_sigma: 1.2
+order_lb: 2
+order_ub: 6
+
+# processor parameters
+processor_num:
+  - 3
+  # - 4
+  # - 5
+
+speed:
+  - 1.25
+  - 1.5
+  - 1.75
+  - 2
+  - 2.25
+    
+base_time:
+  - 30
+  - 25
+  - 22
+  - 20
+  - 18
+
+fixed_charge:
+  - 16
+  - 20
+  - 24
+  - 30
+  - 40
+
+unit_cost:
+  - 2
+  - 4
+  - 6
+  - 8
+  - 10

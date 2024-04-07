@@ -7,6 +7,8 @@ def args_parser() -> argparse.ArgumentParser:
 
     parser.add_argument("-c", "--config", type=str, default=None)
     parser.add_argument("--heuristic", type=bool, default=False)
+    parser.add_argument("--ip", type=bool, default=False)
+    parser.add_argument("--heuristic_method", type=str, default=None)
     parser.add_argument("--saving_folder", type=str, default='imgs/heuristic')
     parser.add_argument("--alpha", type=float, default=0.5)
     parser.add_argument("--seed", type=int, default=1)

@@ -146,6 +146,8 @@ def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], proces
     # draw gantt chart
     draw_gannt_chart_ip(pd.DataFrame(res), orders, makespan, image_name, m.objVal, processors)
 
+    return m.status == GRB.Status.OPTIMAL, m.objVal
+
 def draw_gannt_chart_ip(df : dict[str, dict[str, Union[str, float]]], orders:list[str], makespan:dict[str, int], image_name:str, cost, processors) -> None:
     # df = pd.DataFrame({ 'job': result.keys(),
     #                     'processor': [result[j]['processor'] for j in result],

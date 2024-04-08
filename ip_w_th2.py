@@ -11,7 +11,7 @@ from collections import defaultdict
 from loguru import logger
 import matplotlib.colors as mcolors
 
-def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], processor_info:dict[str, list[float]], alpha:float, image_name:str) -> None:
+def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], processor_info:dict[str, list[float]], alpha:float, image_name:str) -> tuple[bool, float]:
     logger.debug(jobs)
     logger.debug(orders)
     
@@ -86,7 +86,7 @@ def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], proces
                         m.addConstr(z[j,i,k,g] >= 1 - (2-xo[k,g]-x[j,i]) * M)
                         #m.addConstr(z[j,i,g] >= 1 - (2-xo[k,g]-x[j,i]) * M)
 
-    m.Params.TimeLimit = 1200
+    m.Params.TimeLimit = 6000
     m.optimize()
     m.write("work_schedule.lp")
 

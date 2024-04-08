@@ -30,11 +30,13 @@ if __name__ == '__main__':
         for job_num in args.job_num:
             for order_num in args.order_num:
                 for processor_num in args.processor_num:
+                    logger.info(f'current paramters : job_num {job_num}, order_num {order_num}, processor {processor_num}')
                     jobs_load, orders_info, processors_info, jobs_order = get_data(args, job_num=job_num, order_num=order_num, processor_num=processor_num)
                     start_time = time.time()
                     is_optimal, obj = order_delivery_ip(jobs_load, orders_info, processors_info, args.alpha, f'imgs/ip/{job_num}jobs_{order_num}orders_{processor_num}processors.png')
                     result['time'].append(time.time() - start_time)
                     result['obj'].append(obj)
+                    result['optimal'].append(is_optimal)
                     result['proceesor_num'].append(processor_num)
                     result['order_num'].append(order_num)
                     result['job_num'].append(job_num)

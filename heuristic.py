@@ -62,7 +62,7 @@ class Heuristic():
         order_perm = OrderPerm.get_order_perm(self.orders, order_perm_type)
         fbs_list = sorted(self.processors.values(), key=lambda p:p.f/p.b/p.s)
         p = fbs_list.pop(0)
-        purchased_p = {p}
+        purchased_p = [p]
 
         for o in order_perm:
             # set job permutation
@@ -84,7 +84,7 @@ class Heuristic():
                         can_p.add(j)
                         temp_p = purchased_p.copy()
                         temp_p.remove(p)
-                        temp_p.update((simu_p, can_p))
+                        temp_p += [simu_p, can_p]
                         #print('current job:', j)
                         #can_p.print_jobs()
                         cost = self.cost_calculator.cost(temp_p, order_perm, self.alpha)
@@ -99,12 +99,12 @@ class Heuristic():
                     flag = True
                     # add job to can_p 
                     can_p.add(job)
-                    purchased_p.add(new_p)
+                    purchased_p.append(new_p)
                     purchased_p.remove(old_p)
                     cur_cost = min_cost
                 else:
                     if flag:
-                        purchased_p.add(can_p)
+                        purchased_p.append(can_p)
                         break
                     else:
                         return Solution({p.id : p for p in purchased_p}, order_perm, self.cost_calculator, self.alpha)

@@ -1,6 +1,7 @@
 from utils.components import Solution
 import copy
 import random
+from time import time
 
 class TabuList():
     def __init__(self, tabu_len=7):
@@ -22,27 +23,7 @@ class Tabusearch():
         self.iters = iters
         self.tabu_list = TabuList()
 
-    # '''swap two jobs'''
-    # @staticmethod
-    # def swap_job(sol:Solution, pair:tuple[tuple[str,str]]) -> Solution:
-    #     (p1,j1), (p2,j2) = pair
-    #     new_sol = copy.deepcopy(sol)
-    #     new_sol.processors[p1].remove(j1)
-    #     new_sol.processors[p1].add(j2)
-    #     new_sol.processors[p2].remove(j
-    #     new_sol.processors[p2].add(j1)
-    #     return new_sol
-    
-    # '''remove a job from processor and add to another'''
-    # @staticmethod
-    # def insert_job(sol, pair:tuple[str,str,str]) -> Solution:
-    #     j, p1, p2 = pair
-    #     new_sol = copy.deepcopy(sol)
-    #     new_sol.processors[p1].remove(j)
-    #     new_sol.processors[p2].add(j)
-    #     return new_sol     
-
-    def get_neighbors(self, sol:Solution, k:float) -> list[Solution]:
+    def get_tabu_neighbors(self, sol:Solution, k:float) -> list[Solution]:
         res = []
         thr = random.random() * 100
         if thr <= k:
@@ -57,49 +38,73 @@ class Tabusearch():
         '''Insert'''
         for pair in sol.get_all_insert_pairs():
             new_sol = sol.insert_job(pair)
-            res.append(new_sol)
-        return res
+            res.append(new_sol)      
+        return res 
 
-    def local_search(self, current_sol:Solution, k:float, tabu_check:bool=True) -> Solution:
-        neighbors = self.get_neighbors(current_sol, k)  
 
+    def local_search(self, sol:Solution, k=int) -> list[Solution]:
         min_cost = float('inf')
         best_neighbor = None
-        for n in neighbors:
-            if n.getCost() < min_cost and (not tabu_check or n not in self.tabu_list):
-                min_cost =  n.getCost()
-                best_neighbor = n
-        
+        '''ref: partition problem with VNS'''
+        '''Insert'''
+        if k % 3 == 1:
+            visit_neighbor = sol.variable_neighbor_1()
+        elif k % 3 == 2:
+            visit_neighbor = sol.variable_neighbor_2()
+        else:
+            visit_neighbor = sol.variable_neighbor_3()
+
+        for _ in visit_neighbor:
+            cost = sol.getCost()
+            if cost < min_cost:
+                min_cost = cost
+                best_neighbor = copy.deepcopy(sol)
+
         return best_neighbor
     
-    def vnts(self, tabu_check=True) -> Solution:
-        order_perm_num = 100
+    def vnts(self, tabu_check=False) -> tuple[Solution, bool]:
         best_sol = self.sol
         current_sol = self.sol
-        k_max = order_perm_num
+        k_max = len(self.sol.orders_perm) // 2
         k = 0
-        while k < k_max:
-            best_neighbor = self.local_search(copy.deepcopy(current_sol), k, tabu_check)
+        l = 1
+        r = 0 
+        start_time = time()
+        while k <= k_max:
+            if time() - start_time >= 1800:
+                return best_sol, True
+            #min_cost = float('inf')
+            rand_sol = current_sol.swap2order(k, l)
+            best_neighbor = self.local_search(rand_sol, r)
+            
+            self.tabu_list.add(best_neighbor)
+            r = (r+1) % 3
+
             if best_neighbor.getCost() < best_sol.getCost():
                 best_sol = best_neighbor
                 current_sol = best_neighbor
                 self.tabu_list.add(best_neighbor)
                 k = 0
+                l = 1
+            elif l == k_max - 1:
+                k += 1
+                l = 1
             else:
-                k += 1        
-        return best_sol
+                l += 1        
+        return best_sol, False
         
     
     def tabu_search(self) -> Solution:
         best_sol = self.sol
         current_sol = self.sol
- 
+        start_time = time()
+        for k in range(self.iters):
+            if time() - start_time >= 1800:
+                return best_sol, True
 
-        for _ in range(self.iters):
-            neighbors = self.get_neighbors(current_sol)
             min_cost = float('inf')
             best_neighbor = None
-            for sol in neighbors:
+            for sol in self.get_tabu_neighbors(current_sol, k):
                 c = sol.getCost()
                 if sol not in self.tabu_list and c < min_cost:
                     best_neighbor = sol
@@ -115,5 +120,5 @@ class Tabusearch():
             if best_neighbor.getCost() < best_sol.getCost():
                 best_sol = best_neighbor
 
-        return best_sol
+        return best_sol, False
     

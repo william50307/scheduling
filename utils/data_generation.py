@@ -70,7 +70,7 @@ class DataGenerator():
             self.orders_info[o]['jobs'].add(jobs[i])
 
         reamaining_jobs = [j for j in self.jobs_load.keys() if j not in jobs]
-        logger.debug(f'remaining job : {reamaining_jobs}')
+
         for j in reamaining_jobs:
             order_id = 'o'+str(random.randint(1, self.order_num))
             self.orders_info[order_id]['jobs'].add(j)

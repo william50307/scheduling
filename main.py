@@ -8,6 +8,7 @@ from tqdm import tqdm
 from collections import defaultdict
 from pathlib import Path
 import time
+from datetime import datetime
 
 from utils.visualization import draw_gannt_chart
 from ip_w_th2 import order_delivery_ip
@@ -30,7 +31,7 @@ if __name__ == '__main__':
         for job_num in args.job_num:
             for order_num in args.order_num:
                 for processor_num in args.processor_num:
-                    logger.info(f'current paramters : job_num {job_num}, order_num {order_num}, processor {processor_num}')
+                    logger.info(f'current paramters : job_num {job_num}, oredr_num {order_num}, processor {processor_num}')
                     jobs_load, orders_info, processors_info, jobs_order = get_data(args, job_num=job_num, order_num=order_num, processor_num=processor_num)
                     start_time = time.time()
                     is_optimal, obj = order_delivery_ip(jobs_load, orders_info, processors_info, args.alpha, f'imgs/ip/{job_num}jobs_{order_num}orders_{processor_num}processors.png')
@@ -40,9 +41,11 @@ if __name__ == '__main__':
                     result['proceesor_num'].append(processor_num)
                     result['order_num'].append(order_num)
                     result['job_num'].append(job_num)
-
-        result = pd.DataFrame(result)
-        result.to_csv('res/ip_result.csv')
+    
+        if args.record:
+            ctime_str = datetime.now().strftime("%m/%d_%H:%M")
+            result = pd.DataFrame(result)
+            result.to_csv(f'res/ip_result{ctime_str}.csv')
     if not args.heuristic:
         exit()
 
@@ -52,9 +55,7 @@ if __name__ == '__main__':
 
 
     result = defaultdict(list)
-    res = defaultdict(list) 
-    res_time = defaultdict(list)
-    min_calculate = defaultdict(lambda:0)
+    tabu_result = defaultdict(list)
       
     for job_num in args.job_num:
         for order_num in args.order_num:
@@ -74,6 +75,8 @@ if __name__ == '__main__':
                     Path(saving_prefix).mkdir(parents=True, exist_ok=True) 
                     image_name = f'job_num :{job_num}, order_num:{order_num}, processor_num:{processor_num}'
 
+                    # record heuristic solution
+                    heuristic_result = {}
                     for op in orders_perm:
                         for jp in jobs_perm:
                             for hu in args.heuristic_method:
@@ -82,8 +85,7 @@ if __name__ == '__main__':
                                 sol = heuristic.run_heuristic(order_perm_type=op, job_perm_type=jp, mode=hu)
                                 if draw:
                                     draw_gannt_chart(jobs_load, sol, f'{saving_prefix}/{op}_{jp}_{hu}.png', '')
-                                res[(op, jp, hu)].append(sol.getCost())
-                                res_time[(op, jp, hu)].append(time.time() - start_time)
+                                heuristic_result[(op,jp,hu)] = sol
                                 result['time'].append(time.time() - start_time)
                                 result['obj'].append(sol.getCost())
                                 result['instance_no'].append(i+1)
@@ -94,41 +96,33 @@ if __name__ == '__main__':
                                 result['order_num'].append(order_num)
                                 result['job_num'].append(job_num)
 
+                    chosen_heu = min(heuristic_result, key=lambda x: heuristic_result[x].getCost())
+                    sol = heuristic_result[chosen_heu]
+                    tabu_result['heuristic_obj'].append(sol.getCost())
 
-                                # tabusearch = Tabusearch(sol, 0.3)
-                                # sol = tabusearch.vnts()
-                                # if draw:
-                                #     draw_gannt_chart(jobs_load, sol, f'{saving_prefix}/{op}_{jp}_fbs_tabuSearch.png', image_name)
+ 
+                    tabusearch = Tabusearch(sol, 0.3)
+                    start_time = time.time()
+                    sol, exceeded = tabusearch.vnts()
+                    # sol, exceeded = tabusearch.tabu_search()
+                
+                    tabu_result['time'].append(time.time() - start_time)
+                    tabu_result['tabu_obj'].append(sol.getCost())
+                    tabu_result['instance_no'].append(i+1)
+                    tabu_result['job_perm'].append(jp)
+                    tabu_result['order_perm'].append(op)
+                    tabu_result['heuristic'].append(chosen_heu)
+                    tabu_result['proceesor_num'].append(processor_num)
+                    tabu_result['order_num'].append(order_num)
+                    tabu_result['job_num'].append(job_num)
+                    tabu_result['exceeded'].append(exceeded)
 
-                            # heuristic = Heuristic(helper_data=helper_data, alpha=args.alpha)
-                            # start_time = time.time()
-                            # sol = heuristic.ls(op, jp)
-                            # if draw:
-                            #     draw_gannt_chart(jobs_load, sol, f'{saving_prefix}/{op}_{jp}_ls.png', '')
-                            # res[(op, jp, 'ls')].append(sol.getCost())
-                            # res_time[(op, jp, 'ls')].append(time.time() - start_time)
+                    if draw:
+                        draw_gannt_chart(jobs_load, sol, f'{saving_prefix}/{op}_{jp}_fbs_tabuSearch.png', image_name)
 
-                            # tabulist = TabuList()
-                            # tabusearch = Tabusearch(sol, tabulist, 0.3)
-                            # sol = tabusearch.vnts()
-                            # if draw:
-                            #     draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_ls_tabuSearch.png', '')
-
-                            # heuristic = Heuristic(helper_data=helper_data, alpha=args.alpha)
-                            # start_time = time.time()
-                            # sol = heuristic.bf(op, jp)
-                            # if draw:
-                            #     draw_gannt_chart(jobs_load, sol, f'{saving_prefix}/{op}_{jp}_bf.png', '')
-                            # res[(op, jp, 'bf')].append(sol.getCost())
-                            # res_time[(op, jp, 'bf')].append(time.time() - start_time)
-
-                            # tabulist = TabuList()
-                            # tabusearch = Tabusearch(sol, tabulist, 0.3)
-                            # sol = tabusearch.vnts()
-                            # if draw:
-                            #     draw_gannt_chart(sol, f'{saving_prefix}/{op}_{jp}_bf_tabuSearch.png', '')
-
-                    # min_calculate[min(res, key=lambda x:res.get(x)[-1])] += 100 / args.instance_num / len(args.job_num) / len(args.order_num) / len(args.processor_num)
+                    # 291.62 
+                    # is_optimal, obj = order_delivery_ip(jobs_load, orders_info, processors_info, args.alpha, f'imgs/ip/{job_num}jobs_{order_num}orders_{processor_num}processors.png')
+                    # logger.info(f'optimal obj : {obj}')
                  
     # temp code
     # print('start ip modeling')
@@ -139,5 +133,16 @@ if __name__ == '__main__':
     # for k in res:
     #     print(f'{k} mean cost :', sum(res[k]) / len(res[k]))
     #     print(f'{k} mean time :', sum(res_time[k]) / len(res_time[k]))
-    result = pd.DataFrame(result)
-    result.to_csv('res/heuristic_result.csv')
+                                
+    if args.record:
+        ctime_str = datetime.now().strftime("%m-%d_%H:%M")
+
+        result = pd.DataFrame(result)
+        result.to_csv(f'res/heuristic_result{ctime_str}.csv')
+
+        tabu_result = pd.DataFrame(tabu_result)
+        tabu_result.to_csv(f'res/tabu_result{ctime_str}.csv')
+
+    else:
+        logger.debug(pd.DataFrame(result))
+        logger.debug(pd.DataFrame(tabu_result))

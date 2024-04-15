@@ -1,22 +1,21 @@
-heuristic : false
+heuristic : true
 heuristic_method:
   - 'fbs'
   - 'bf'
   - 'ls'
-ip : true
+ip : false
 saving_folder : 'imgs/heuristic'
 alpha: 0.5
 seed: 20
-instance_num: 30
-draw: false
-record: false
-
+instance_num: 1
+draw : false
+record: true
 
 # job parameters
 job_distribution: 'normal'
 job_num:
-  - 20
-  # - 30
+  # - 20
+  - 30
   # - 40
   # - 50
 
@@ -29,8 +28,8 @@ job_ub: 8
 order_distribution: 'normal'
 order_num:
   # - 3
-  - 5
-  # - 7
+  # - 5
+  - 7
   # - 9
 
 order_mu: 5

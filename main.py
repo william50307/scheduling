@@ -9,6 +9,7 @@ from collections import defaultdict
 from pathlib import Path
 import time
 from datetime import datetime
+import csv
 
 from utils.visualization import draw_gannt_chart
 from ip_w_th2 import order_delivery_ip
@@ -24,6 +25,26 @@ if __name__ == '__main__':
     logger.info(f'set random seed : {args.seed}')
     random.seed(args.seed)
     np.random.seed(args.seed)
+
+    # prepare output file
+    if args.record:
+        ctime_str = datetime.now().strftime("%m-%d_%H-%M")
+        heu_path = Path('res', ctime_str)
+        heu_path.mkdir(parents=True, exist_ok=True)
+        vns_path = Path('res', ctime_str)
+        vns_path.mkdir(parents=True, exist_ok=True)
+
+        hf = open(Path(heu_path, 'heuristic.csv'), 'w', newline='')
+        vf = open(Path(vns_path, 'vns.csv'), 'w', newline='')
+
+        heu_fieldnames = ['time', 'obj', 'instance_no','job_perm', 'order_perm', 'heuristic','proceesor_num', 'order_num', 'job_num']
+        heu_writer = csv.DictWriter(hf, fieldnames=heu_fieldnames)
+        heu_writer.writeheader()
+
+        vns_fieldnames = ['time', 'heuristic_obj', 'vns_obj', 'instance_no','job_perm', 'order_perm', 'heuristic','proceesor_num', 'order_num', 'job_num', 'exceeded']
+        vns_writer = csv.DictWriter(vf, fieldnames=vns_fieldnames)
+        vns_writer.writeheader()
+
 
     result = defaultdict(list)
 
@@ -86,36 +107,38 @@ if __name__ == '__main__':
                                 if draw:
                                     draw_gannt_chart(jobs_load, sol, f'{saving_prefix}/{op}_{jp}_{hu}.png', '')
                                 heuristic_result[(op,jp,hu)] = sol
-                                result['time'].append(time.time() - start_time)
-                                result['obj'].append(sol.getCost())
-                                result['instance_no'].append(i+1)
-                                result['job_perm'].append(jp)
-                                result['order_perm'].append(op)
-                                result['heuristic'].append(hu)
-                                result['proceesor_num'].append(processor_num)
-                                result['order_num'].append(order_num)
-                                result['job_num'].append(job_num)
+
+                                heu_writer.writerow({'time': time.time() - start_time, 
+                                                    'obj': sol.getCost(), 
+                                                    'instance_no': i+1,
+                                                    'job_perm': jp, 
+                                                    'order_perm': op, 
+                                                    'heuristic': hu,
+                                                    'proceesor_num': processor_num, 
+                                                    'order_num': order_num,
+                                                    'job_num': job_num})
 
                     chosen_heu = min(heuristic_result, key=lambda x: heuristic_result[x].getCost())
+                    op, jp, hu = chosen_heu
                     sol = heuristic_result[chosen_heu]
-                    tabu_result['heuristic_obj'].append(sol.getCost())
-
+                    heuristic_obj = sol.getCost()
+                    
  
                     tabusearch = Tabusearch(sol, 0.3)
                     start_time = time.time()
                     sol, exceeded = tabusearch.vnts()
                     # sol, exceeded = tabusearch.tabu_search()
-                
-                    tabu_result['time'].append(time.time() - start_time)
-                    tabu_result['tabu_obj'].append(sol.getCost())
-                    tabu_result['instance_no'].append(i+1)
-                    tabu_result['job_perm'].append(jp)
-                    tabu_result['order_perm'].append(op)
-                    tabu_result['heuristic'].append(chosen_heu)
-                    tabu_result['proceesor_num'].append(processor_num)
-                    tabu_result['order_num'].append(order_num)
-                    tabu_result['job_num'].append(job_num)
-                    tabu_result['exceeded'].append(exceeded)
+                    vns_writer.writerow({'time': time.time() - start_time, 
+                                        'heuristic_obj' : heuristic_obj,
+                                        'vns_obj': sol.getCost(), 
+                                        'instance_no': i+1,
+                                        'job_perm': jp, 
+                                        'order_perm': op, 
+                                        'heuristic': hu,
+                                        'proceesor_num': processor_num, 
+                                        'order_num': order_num,
+                                        'job_num': job_num,
+                                        'exceeded': exceeded})
 
                     if draw:
                         draw_gannt_chart(jobs_load, sol, f'{saving_prefix}/{op}_{jp}_fbs_tabuSearch.png', image_name)
@@ -124,25 +147,16 @@ if __name__ == '__main__':
                     # is_optimal, obj = order_delivery_ip(jobs_load, orders_info, processors_info, args.alpha, f'imgs/ip/{job_num}jobs_{order_num}orders_{processor_num}processors.png')
                     # logger.info(f'optimal obj : {obj}')
                  
-    # temp code
-    # print('start ip modeling')
-    # order_delivery_ip(jobs_load, orders_info, processors_info, args.alpha, 'ip/20jobs_5orders_3processors.png')
-                    
-    #print(min_calculate)
-    #print(sum(min_calculate.values()))
-    # for k in res:
-    #     print(f'{k} mean cost :', sum(res[k]) / len(res[k]))
-    #     print(f'{k} mean time :', sum(res_time[k]) / len(res_time[k]))
                                 
-    if args.record:
-        ctime_str = datetime.now().strftime("%m-%d_%H:%M")
+    # if args.record:
+    #     ctime_str = datetime.now().strftime("%m-%d_%H:%M")
 
-        result = pd.DataFrame(result)
-        result.to_csv(f'res/heuristic_result{ctime_str}.csv')
+    #     result = pd.DataFrame(result)
+    #     result.to_csv(f'res/heuristic_result{ctime_str}.csv')
 
-        tabu_result = pd.DataFrame(tabu_result)
-        tabu_result.to_csv(f'res/tabu_result{ctime_str}.csv')
+    #     tabu_result = pd.DataFrame(tabu_result)
+    #     tabu_result.to_csv(f'res/tabu_result{ctime_str}.csv')
 
-    else:
-        logger.debug(pd.DataFrame(result))
-        logger.debug(pd.DataFrame(tabu_result))
+    # else:
+    #     logger.debug(pd.DataFrame(result))
+    #     logger.debug(pd.DataFrame(tabu_result))

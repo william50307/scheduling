@@ -260,8 +260,15 @@ class Solution():
         #new_sol.orders_perm[i], new_sol.orders_perm[i+k] = new_sol.orders_perm[i+k], new_sol.orders_perm[i]
         return new_sol
 
-    def get_neighbor(self):
+    ''' swap is job to ignore'''
+    def get_neighbor(self, *swap):
         res = []
+
+        # ignore job
+        for pair in swap:
+            j, p1, _ = pair
+            self.processors[p1].remove(j)
+            
         for p1, p2 in combinations(self.processors.keys(), 2):
             for o in self.orders_perm:
                 # move jobs in p1 to p2
@@ -270,58 +277,39 @@ class Solution():
                 # move jobs in p2 to p1
                 for j in self.processors[p2].jobs[o]:
                     res.append((j, p2, p1))
-        return res 
+        
+        # resume job
+        for pair in swap:
+            j, p1, _ = pair
+            self.processors[p1].add(j)
+
+        return res
+
+    def insert_inplace(self, pairs):
+        for pair in pairs:
+            j, p1, p2 = pair
+            self.processors[p1].remove(j)
+            self.processors[p2].add(j)
+
+    def insert_resume_inplace(self, pairs):
+        for pair in pairs:
+            j, p1, p2 = pair
+            self.processors[p1].add(j)
+            self.processors[p2].remove(j)
+
 
     def variable_neighbor_1(self):
         for pair1 in self.get_neighbor():
-            j_1, p1_1, p2_1 = pair1  
-            self.processors[p1_1].remove(j_1)                
-            self.processors[p2_1].add(j_1)       
-            yield pair1
-            self.processors[p2_1].remove(j_1) 
-            self.processors[p1_1].add(j_1)  
+            # ',' can not be ignore since the return type must be a tuple
+            yield pair1,
 
     def variable_neighbor_2(self):
-        for pair1 in self.get_neighbor():
-            j_1, p1_1, p2_1 = pair1  
-            self.processors[p1_1].remove(j_1)                
-            for pair2 in self.get_neighbor():
-                j_2, p1_2, p2_2 = pair2
-                self.processors[p1_2].remove(j_2)
-
-                self.processors[p2_1].add(j_1)
-                self.processors[p2_2].add(j_2)
-
+        for pair1 in self.get_neighbor(): 
+            for pair2 in self.get_neighbor(pair1):
                 yield pair1, pair2
 
-                self.processors[p2_2].remove(j_2)
-                self.processors[p1_2].add(j_2)
-
-            self.processors[p2_1].remove(j_1) 
-            self.processors[p1_1].add(j_1)  
-
     def variable_neighbor_3(self):
-        for pair1 in self.get_neighbor():
-            j_1, p1_1, p2_1 = pair1  
-            self.processors[p1_1].remove(j_1)                
-            for pair2 in self.get_neighbor():
-                j_2, p1_2, p2_2 = pair2
-                self.processors[p1_2].remove(j_2)
-                for pair3 in self.get_neighbor():
-                    j_3, p1_3, p2_3 = pair3
-                    self.processors[p1_3].remove(j_3)
-
-                    self.processors[p2_1].add(j_1)
-                    self.processors[p2_2].add(j_2)
-                    self.processors[p2_3].add(j_3)
-
+        for pair1 in self.get_neighbor():              
+            for pair2 in self.get_neighbor(pair1):
+                for pair3 in self.get_neighbor(pair1, pair2):
                     yield pair1, pair2, pair3
-
-                    self.processors[p2_3].remove(j_3)
-                    self.processors[p1_3].add(j_3)
-
-                self.processors[p2_2].remove(j_2)
-                self.processors[p1_2].add(j_2)
-
-            self.processors[p2_1].remove(j_1) 
-            self.processors[p1_1].add(j_1)

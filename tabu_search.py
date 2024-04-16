@@ -54,18 +54,20 @@ class Tabusearch():
         else:
             visit_neighbor = sol.variable_neighbor_3()
 
-        for _ in visit_neighbor:
+        for pairs in visit_neighbor:
+            sol.insert_inplace(pairs)
             cost = sol.getCost()
             if cost < min_cost:
                 min_cost = cost
                 best_neighbor = copy.deepcopy(sol)
+            sol.insert_resume_inplace(pairs)
 
         return best_neighbor
     
     def vnts(self, tabu_check=False) -> tuple[Solution, bool]:
         best_sol = self.sol
         current_sol = self.sol
-        k_max = len(self.sol.orders_perm) // 2
+        k_max = len(self.sol.orders_perm) // 2 + 1
         k = 0
         l = 1
         r = 0 

@@ -23,8 +23,8 @@ class Tabusearch():
         self.iters = iters
         self.tabu_list = TabuList()
 
-    def get_tabu_neighbors(self, sol:Solution, k:float) -> list[Solution]:
-        res = []
+    def get_tabu_neighbors(self, sol:Solution, k:float):
+
         thr = random.random() * 100
         if thr <= k:
             # switch order permutation
@@ -32,14 +32,11 @@ class Tabusearch():
 
         '''job swap'''
         for pair in sol.get_all_swap_pairs():
-            new_sol = sol.swap_job(pair)
-            res.append(new_sol)
+            yield sol.swap_job(pair)
 
         '''Insert'''
         for pair in sol.get_all_insert_pairs():
-            new_sol = sol.insert_job(pair)
-            res.append(new_sol)      
-        return res 
+            yield sol.insert_job(pair)       
 
 
     def local_search(self, sol:Solution, k=int) -> list[Solution]:
@@ -54,6 +51,7 @@ class Tabusearch():
         else:
             visit_neighbor = sol.variable_neighbor_3()
 
+        # TODO:should return if time exceed...
         for pairs in visit_neighbor:
             sol.insert_inplace(pairs)
             cost = sol.getCost()
@@ -79,13 +77,11 @@ class Tabusearch():
             rand_sol = current_sol.swap2order(k, l)
             best_neighbor = self.local_search(rand_sol, r)
             
-            self.tabu_list.add(best_neighbor)
             r = (r+1) % 3
 
             if best_neighbor.getCost() < best_sol.getCost():
                 best_sol = best_neighbor
                 current_sol = best_neighbor
-                self.tabu_list.add(best_neighbor)
                 k = 0
                 l = 1
             elif l == k_max - 1:
@@ -99,16 +95,14 @@ class Tabusearch():
     def tabu_search(self) -> Solution:
         best_sol = self.sol
         current_sol = self.sol
-        start_time = time()
         for k in range(self.iters):
-            if time() - start_time >= 1800:
-                return best_sol, True
-
+            start_time = time()
+       
             min_cost = float('inf')
             best_neighbor = None
             for sol in self.get_tabu_neighbors(current_sol, k):
                 c = sol.getCost()
-                if sol not in self.tabu_list and c < min_cost:
+                if  c < min_cost and sol not in self.tabu_list:
                     best_neighbor = sol
                     min_cost = c
 
@@ -121,6 +115,9 @@ class Tabusearch():
     
             if best_neighbor.getCost() < best_sol.getCost():
                 best_sol = best_neighbor
+
+            if time() - start_time >= 1800:
+                return best_sol, True
 
         return best_sol, False
     

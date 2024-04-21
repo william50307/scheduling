@@ -11,10 +11,10 @@ class TabuList():
     def add(self, new_sol):
         if len(self.tabu_list) == self.tabu_len:
             self.tabu_list.pop(0)
-            self.tabu_list.append(new_sol)
+            self.tabu_list.append(new_sol.rep)
     
     def __contains__(self, item):
-        return item in self.tabu_list
+        return item.rep in self.tabu_list
 
 class Tabusearch():
     def __init__(self, current_solution:Solution, alpha:int=None, iters:int=100):
@@ -62,7 +62,7 @@ class Tabusearch():
 
         return best_neighbor
     
-    def vnts(self, tabu_check=False) -> tuple[Solution, bool]:
+    def vns(self) -> tuple[Solution, bool]:
         best_sol = self.sol
         current_sol = self.sol
         k_max = len(self.sol.orders_perm) // 2 + 1
@@ -73,7 +73,7 @@ class Tabusearch():
         while k <= k_max:
             if time() - start_time >= 1800:
                 return best_sol, True
-            #min_cost = float('inf')
+
             rand_sol = current_sol.swap2order(k, l)
             best_neighbor = self.local_search(rand_sol, r)
             
@@ -97,6 +97,9 @@ class Tabusearch():
         current_sol = self.sol
         for k in range(self.iters):
             start_time = time()
+
+            if time() - start_time >= 1800:
+                return best_sol, True
        
             min_cost = float('inf')
             best_neighbor = None
@@ -115,9 +118,6 @@ class Tabusearch():
     
             if best_neighbor.getCost() < best_sol.getCost():
                 best_sol = best_neighbor
-
-            if time() - start_time >= 1800:
-                return best_sol, True
 
         return best_sol, False
     

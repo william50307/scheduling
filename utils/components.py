@@ -173,11 +173,12 @@ class Solution():
             self.makespan[p] = self.processors[p].get_makespan()
         
         # representation need to reconstruct
-        # sol_rep = [0] * len(new_sol.cost_calculator.jobs_load)
-        # for i, p in enumerate(new_sol.prcoessors):
-        #     for o in new_sol.processors[p]:
-        #         for j in new_sol.processors[p][o]:
-        #             sol_rep[int(j[1:])-1] = i
+        rep = [0] * len(cost_calculator.jobs_load)
+        for i, p in enumerate(self.processors):
+            for o in self.orders_perm:
+                for j in self.processors[p].jobs[o]:
+                    rep[int(j[1:])-1] = i
+        self.rep = ((tuple(o for o in orders_perm)), tuple(j for j in rep))
 
     def getCost(self):
         return self.cost_calculator.cost(set(self.processors.values()), self.orders_perm, self.alpha)
@@ -230,14 +231,12 @@ class Solution():
     return value is a tuple contains three elements : [job name, processor remove from, processor insert into]
     '''
     def get_all_insert_pairs(self):# -> list[tuple[str, str, str]]:
-        res = []
         for p1, p2 in combinations(self.processors.keys(), 2):
             for o in self.orders_perm:
                 for j in self.processors[p1].jobs[o]:
                     yield (j, p1, p2)
                 for j in self.processors[p2].jobs[o]:
                     yield (j, p2, p1)
-
 
     '''remove a job from processor and add to another'''
     def insert_job(self, pair:tuple[str,str,str]) -> Self:
@@ -267,7 +266,7 @@ class Solution():
         #new_sol.orders_perm[i], new_sol.orders_perm[i+k] = new_sol.orders_perm[i+k], new_sol.orders_perm[i]
         return new_sol
 
-    ''' swap is job to ignore'''
+    ''' swap job to ignore'''
     def get_neighbor(self, *swap):
         res = []
 

@@ -13,6 +13,8 @@ def args_parser() -> argparse.ArgumentParser:
     parser.add_argument("--alpha", type=float, default=0.5)
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--record", type=bool, default=False)
+    parser.add_argument("--tabu", type=bool, default=False)
+    parser.add_argument("--vns", type=bool, default=False)
 
     # job
     parser.add_argument("--job_distribution", type=str, default='normal')

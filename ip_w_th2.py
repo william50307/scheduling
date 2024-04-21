@@ -12,9 +12,7 @@ from loguru import logger
 import matplotlib.colors as mcolors
 
 def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], processor_info:dict[str, list[float]], alpha:float, image_name:str) -> tuple[bool, float]:
-    logger.debug(jobs)
-    logger.debug(orders)
-    
+
     orders = {k:[v['jobs'], v['weight']] for k,v in orders.items()}
     orders, job_in_order, w = gp.multidict(orders)
     processors, b, u, f, s = gp.multidict(processor_info)

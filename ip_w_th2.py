@@ -142,7 +142,8 @@ def order_delivery_ip(jobs : list[int], orders:dict[str,list[set , int]], proces
     logger.debug(pd.DataFrame(res))
 
     # draw gantt chart
-    draw_gannt_chart_ip(pd.DataFrame(res), orders, makespan, image_name, m.objVal, processors)
+    if image_name:
+        draw_gannt_chart_ip(pd.DataFrame(res), orders, makespan, image_name, m.objVal, processors)
 
     return m.status == GRB.Status.OPTIMAL, m.objVal
 

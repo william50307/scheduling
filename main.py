@@ -81,7 +81,7 @@ if __name__ == '__main__':
 
                     if args.ip:
                         start_time = time()
-                        is_optimal, obj = order_delivery_ip(jobs_load, orders_info, processors_info, args.alpha, fig_folder / 'ip.png')
+                        is_optimal, obj = order_delivery_ip(jobs_load, orders_info, processors_info, args.alpha, fig_folder / 'ip.png' if draw else '')
                         if args.record:
                             ip_writer.writerow({'time': time() - start_time, 
                                                 'obj': obj, 

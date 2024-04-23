@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from utils.components import Solution
+import matplotlib.colors as mcolors
 
 def draw_gannt_chart(jobs_load:dict[str:int], sol:Solution, image_name:str, title:str) -> None:
     infos = defaultdict(list)
@@ -27,7 +28,7 @@ def draw_gannt_chart(jobs_load:dict[str:int], sol:Solution, image_name:str, titl
     barh_width = 2
     yticks = np.linspace(0, 10,num=len(sol.processors)+2)[1:-1]
     xticks = np.arange(max([p.get_makespan() for p in sol.processors.values()]) + 1)
-    colors = random.sample(cm.Accent.colors, len(sol.orders_perm))
+    colors = list(mcolors.TABLEAU_COLORS.values())
     colors = {sol.orders_perm[i]:colors[i] for i in range(len(sol.orders_perm))}
     ax.set_title(title + '\n' + f'cost : {sol.getCost()}')
     ax.set_ylim(0, 10)

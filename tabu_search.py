@@ -38,6 +38,38 @@ class Tabusearch():
         for pair in sol.get_all_insert_pairs():
             yield sol.insert_job(pair)       
 
+    def tabu_search(self) -> Solution:
+        best_sol = self.sol
+        current_sol = self.sol
+        for k in range(self.iters):
+            start_time = time()
+
+            if time() - start_time >= 1800:
+                return best_sol, True
+       
+            min_cost = float('inf')
+            best_neighbor = None
+            for sol in self.get_tabu_neighbors(current_sol, k):
+                c = sol.getCost()
+                if  c < min_cost and sol not in self.tabu_list:
+                    best_neighbor = sol
+                    min_cost = c
+
+            if best_neighbor is None:
+                print('No non-tabu neighbors found')
+                return best_sol
+            
+            current_sol = best_neighbor
+            self.tabu_list.add(best_sol)
+    
+            if best_neighbor.getCost() < best_sol.getCost():
+                best_sol = best_neighbor
+
+        return best_sol, False
+
+class VNS():
+    def __init__(self, solution:Solution):
+        self.sol = solution
 
     def local_search(self, sol:Solution, k=int) -> list[Solution]:
         min_cost = float('inf')
@@ -90,34 +122,3 @@ class Tabusearch():
             else:
                 l += 1        
         return best_sol, False
-        
-    
-    def tabu_search(self) -> Solution:
-        best_sol = self.sol
-        current_sol = self.sol
-        for k in range(self.iters):
-            start_time = time()
-
-            if time() - start_time >= 1800:
-                return best_sol, True
-       
-            min_cost = float('inf')
-            best_neighbor = None
-            for sol in self.get_tabu_neighbors(current_sol, k):
-                c = sol.getCost()
-                if  c < min_cost and sol not in self.tabu_list:
-                    best_neighbor = sol
-                    min_cost = c
-
-            if best_neighbor is None:
-                print('No non-tabu neighbors found')
-                return best_sol
-            
-            current_sol = best_neighbor
-            self.tabu_list.add(best_sol)
-    
-            if best_neighbor.getCost() < best_sol.getCost():
-                best_sol = best_neighbor
-
-        return best_sol, False
-    

@@ -2,10 +2,9 @@ from utils.util import args_parser, get_data
 from heuristic import Heuristic
 import random
 import numpy as np
-import pandas as pd
+import copy
 from loguru import logger
 from tqdm import tqdm
-from collections import defaultdict
 from pathlib import Path
 from time import time 
 from datetime import datetime
@@ -14,7 +13,7 @@ import shutil
 
 from utils.visualization import draw_gannt_chart
 from ip_w_th2 import order_delivery_ip
-from tabu_search import Tabusearch
+from tabu_search import Tabusearch, VNS
 
 if __name__ == '__main__':
 
@@ -117,11 +116,11 @@ if __name__ == '__main__':
 
                     chosen_heu = min(heuristic_result, key=lambda x: heuristic_result[x].getCost())
                     op, jp, hu = chosen_heu
-                    sol = heuristic_result[chosen_heu]
-                    heuristic_obj = sol.getCost()
+                    heurist_sol = heuristic_result[chosen_heu]
+                    heuristic_obj = heurist_sol.getCost()
                     
-                    tabusearch = Tabusearch(sol, 0.3)
                     if args.tabu:
+                        tabusearch = Tabusearch(copy.deepcopy(heurist_sol), 0.3)
                         logger.info('start tabu searching...')
                         start_time = time()
                         sol, exceeded = tabusearch.tabu_search()
@@ -142,9 +141,10 @@ if __name__ == '__main__':
                             draw_gannt_chart(jobs_load, sol, fig_folder / f'{op}_{jp}_{hu}_tabu.png', '')
 
                     if args.vns:
+                        vns = VNS(copy.deepcopy(heurist_sol))
                         logger.info('start VNS searching...')
                         start_time = time()
-                        sol, exceeded = tabusearch.vns()
+                        sol, exceeded = vns.vns()
                         logger.info(f'VNS finish, total time : {time() - start_time}s')
                         if args.record:
                             vns_writer.writerow({'time': time() - start_time, 

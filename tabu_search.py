@@ -28,7 +28,7 @@ class Tabusearch():
         thr = random.random() * 100
         if thr <= k:
             # switch order permutation
-            random.shuffle(self.sol.orders_perm)
+            random.shuffle(sol.orders_perm)
 
         '''job swap'''
         for pair in sol.get_all_swap_pairs():

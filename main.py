@@ -29,6 +29,7 @@ if __name__ == '__main__':
     ctime_str = datetime.now().strftime("%m-%d_%H-%M-%S")
     root_path = Path('res', ctime_str)
     root_path.mkdir(parents=True, exist_ok=True)
+    # backup config file
     shutil.copyfile(args.config, root_path / 'config.yaml')
     
     
@@ -64,10 +65,11 @@ if __name__ == '__main__':
         for order_num in args.order_num:
             for processor_num in args.processor_num:
                 logger.info(f'current paramters : job_num {job_num}, order_num {order_num}, processor {processor_num}')
+                diff_max = float('-inf')
                 for i in tqdm(range(args.instance_num)):
                     # get data
-                    jobs_load, orders_info, processors_info, jobs_order = get_data(args, job_num=job_num, order_num=order_num, processor_num=processor_num)
-                    helper_data = {
+                    jobs_load, orders_info, processors_info, jobs_order = get_data(args, job_num=job_num, order_num=order_num, processor_num=processor_num, beta=args.distribution_beta)
+                    data = {
                         'jobs_load' : jobs_load,
                         'jobs_order' : jobs_order,
                         'orders_info' : orders_info,
@@ -96,7 +98,7 @@ if __name__ == '__main__':
                     for op in orders_perm:
                         for jp in jobs_perm:
                             for hu in args.heuristic_method:
-                                heuristic = Heuristic(helper_data=helper_data, alpha=args.alpha)
+                                heuristic = Heuristic(helper_data=data, alpha=args.alpha)
                                 start_time = time()
                                 sol = heuristic.run_heuristic(order_perm_type=op, job_perm_type=jp, mode=hu)
                                 if draw: 
@@ -114,50 +116,58 @@ if __name__ == '__main__':
                                                         'order_num': order_num,
                                                         'job_num': job_num})
 
-                    chosen_heu = min(heuristic_result, key=lambda x: heuristic_result[x].getCost())
-                    op, jp, hu = chosen_heu
-                    heurist_sol = heuristic_result[chosen_heu]
-                    heuristic_obj = heurist_sol.getCost()
+                    min_heu = min(heuristic_result, key=lambda x: heuristic_result[x].getCost())
+                    max_heu = max(heuristic_result, key=lambda x: heuristic_result[x].getCost())
+                    if heuristic_result[max_heu].getCost() - heuristic_result[min_heu].getCost() > diff_max:
+                        diff_max = heuristic_result[max_heu].getCost() - heuristic_result[min_heu].getCost()
+                        min_heu_disc = min_heu
+                        max_heu_disc = max_heu
+                        min_heu_disc_sol = heuristic_result[min_heu]
+                        max_heu_disc_sol = heuristic_result[max_heu]
+                        
+                     
+                op, jp, hu = min_heu_disc
+                heuristic_obj = min_heu_disc_sol.getCost()
                     
-                    if args.tabu:
-                        tabusearch = Tabusearch(copy.deepcopy(heurist_sol), 0.3)
-                        logger.info('start tabu searching...')
-                        start_time = time()
-                        sol, exceeded = tabusearch.tabu_search()
-                        logger.info(f'tabu search finish, total time : {time() - start_time}s')
-                        if args.record:
-                            tabu_writer.writerow({'time': time() - start_time, 
-                                        'heuristic_obj' : heuristic_obj,
-                                        'meta_obj': sol.getCost(), 
-                                        'instance_no': i+1,
-                                        'job_perm': jp, 
-                                        'order_perm': op, 
-                                        'heuristic': hu,
-                                        'proceesor_num': processor_num, 
-                                        'order_num': order_num,
-                                        'job_num': job_num,
-                                        'exceeded': exceeded})
-                        if draw:
-                            draw_gannt_chart(jobs_load, sol, fig_folder / f'{op}_{jp}_{hu}_tabu.png', '')
+                if args.tabu:
+                    tabusearch = Tabusearch(copy.deepcopy(min_heu_disc_sol), 0.3)
+                    logger.info('start tabu searching...')
+                    start_time = time()
+                    sol, exceeded = tabusearch.tabu_search()
+                    logger.info(f'tabu search finish, total time : {time() - start_time}s')
+                    if args.record:
+                        tabu_writer.writerow({'time': time() - start_time, 
+                                    'heuristic_obj' : heuristic_obj,
+                                    'meta_obj': sol.getCost(), 
+                                    'instance_no': i+1,
+                                    'job_perm': jp, 
+                                    'order_perm': op, 
+                                    'heuristic': hu,
+                                    'proceesor_num': processor_num, 
+                                    'order_num': order_num,
+                                    'job_num': job_num,
+                                    'exceeded': exceeded})
+                    if draw:
+                        draw_gannt_chart(jobs_load, sol, fig_folder / f'{op}_{jp}_{hu}_tabu.png', '')
 
-                    if args.vns:
-                        vns = VNS(copy.deepcopy(heurist_sol))
-                        logger.info('start VNS searching...')
-                        start_time = time()
-                        sol, exceeded = vns.vns()
-                        logger.info(f'VNS finish, total time : {time() - start_time}s')
-                        if args.record:
-                            vns_writer.writerow({'time': time() - start_time, 
-                                        'heuristic_obj' : heuristic_obj,
-                                        'meta_obj': sol.getCost(), 
-                                        'instance_no': i+1,
-                                        'job_perm': jp, 
-                                        'order_perm': op, 
-                                        'heuristic': hu,
-                                        'proceesor_num': processor_num, 
-                                        'order_num': order_num,
-                                        'job_num': job_num,
-                                        'exceeded': exceeded})
-                        if draw:
-                            draw_gannt_chart(jobs_load, sol, fig_folder / f'{op}_{jp}_{hu}_vns.png', '')
-                   
+                if args.vns:
+                    vns = VNS(copy.deepcopy(min_heu_disc_sol))
+                    logger.info('start VNS searching...')
+                    start_time = time()
+                    sol, exceeded = vns.vns()
+                    logger.info(f'VNS finish, total time : {time() - start_time}s')
+                    if args.record:
+                        vns_writer.writerow({'time': time() - start_time, 
+                                    'heuristic_obj' : heuristic_obj,
+                                    'meta_obj': sol.getCost(), 
+                                    'instance_no': i+1,
+                                    'job_perm': jp, 
+                                    'order_perm': op, 
+                                    'heuristic': hu,
+                                    'proceesor_num': processor_num, 
+                                    'order_num': order_num,
+                                    'job_num': job_num,
+                                    'exceeded': exceeded})
+                    if draw:
+                        draw_gannt_chart(jobs_load, sol, fig_folder / f'{op}_{jp}_{hu}_vns.png', '')
+                

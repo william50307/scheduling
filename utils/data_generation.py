@@ -38,7 +38,8 @@ class DataGenerator():
         elif self.job_load_distri == 'normal':
             while True:
                 loads = np.random.normal(self.job_mu, self.job_sigma, self.job_num)
-                if (loads > 0).all():
+                # 2.2 is max speed in proceesors 
+                if (loads > 2.2).all():
                     break
         else:
             print('no such distribution type')

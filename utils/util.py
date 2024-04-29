@@ -1,6 +1,7 @@
 import yaml
 import argparse
 from utils.data_generation import DataGenerator
+from random import random
 
 def args_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
@@ -15,6 +16,7 @@ def args_parser() -> argparse.ArgumentParser:
     parser.add_argument("--record", type=bool, default=False)
     parser.add_argument("--tabu", type=bool, default=False)
     parser.add_argument("--vns", type=bool, default=False)
+    parser.add_argument("--distribution_beta", type=float, default=0.5)
 
     # job
     parser.add_argument("--job_distribution", type=str, default='normal')
@@ -60,10 +62,10 @@ return value:
     processors_info = { 'p1' : [25,15,10,1.6], ...}
     jobs_order = {'j1' : 'o1', ...}
 '''
-def get_data(args, job_num, order_num, processor_num) -> tuple[dict[str:float], dict[str:dict[str:set|float], dict[str:list[float]]]]:
+def get_data(args, job_num, order_num, processor_num, beta) -> tuple[dict[str:float], dict[str:dict[str:set|float], dict[str:list[float]]]]:
     data_generator = DataGenerator()
-    data_generator.set_job_params(args.job_distribution, job_num, args.job_mu, args.job_sigma, args.job_lb, args.job_ub)
-    data_generator.set_order_parm(args.order_distribution, order_num, args.order_mu, args.order_sigma, args.order_lb, args.order_ub)
+    data_generator.set_job_params('normal' if random() < beta else 'uniform', job_num, args.job_mu, args.job_sigma, args.job_lb, args.job_ub)
+    data_generator.set_order_parm('normal' if random() < beta else 'uniform', order_num, args.order_mu, args.order_sigma, args.order_lb, args.order_ub)
     data_generator.set_processo_parm(processor_num, args.speed, args.base_time, args.fixed_charge, args.unit_cost)
     jobs_load = data_generator.get_jobs()
     orders_info = data_generator.get_order()

@@ -151,7 +151,7 @@ if __name__ == '__main__':
                         draw_gannt_chart(jobs_load, sol, fig_folder / f'{op}_{jp}_{hu}_tabu.png', '')
 
                 if args.vns:
-                    vns = VNS(copy.deepcopy(min_heu_disc_sol))
+                    vns = VNS(copy.deepcopy(min_heu_disc_sol), args.neighbor_num)
                     logger.info('start VNS searching...')
                     start_time = time()
                     sol, exceeded = vns.vns()

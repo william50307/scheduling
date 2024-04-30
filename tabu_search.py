@@ -68,8 +68,9 @@ class Tabusearch():
         return best_sol, False
 
 class VNS():
-    def __init__(self, solution:Solution):
+    def __init__(self, solution:Solution, neighbor_num:int):
         self.sol = solution
+        self.neighbor_num = neighbor_num
 
     def local_search(self, sol:Solution, k=int) -> list[Solution]:
         min_cost = float('inf')
@@ -78,7 +79,7 @@ class VNS():
         '''Insert'''
         if k % 3 == 1:
             visit_neighbor = sol.variable_neighbor_1()
-        elif k % 3 == 2:
+        elif k % 3 == 2 or self.neighbor_num == 2:
             visit_neighbor = sol.variable_neighbor_2()
         else:
             visit_neighbor = sol.variable_neighbor_3()

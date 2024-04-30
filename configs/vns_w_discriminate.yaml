@@ -11,6 +11,7 @@ seed: 20
 instance_num: 30
 draw : false
 record: true 
+neighbor_num: 2
 
 # job parameters
 job_distribution: 'uniform' #['normal', uniform]

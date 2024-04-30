@@ -17,6 +17,7 @@ def args_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tabu", type=bool, default=False)
     parser.add_argument("--vns", type=bool, default=False)
     parser.add_argument("--distribution_beta", type=float, default=0.5)
+    parser.add_argument("--neighbor_num", type=int, default=3)
 
     # job
     parser.add_argument("--job_distribution", type=str, default='normal')

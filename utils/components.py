@@ -111,7 +111,7 @@ class OrderPerm():
     '''
     @staticmethod
     def weight_minimum_load(orders) -> list[str]:
-        return [o.id for o in sorted(orders.values(), key=lambda x:x.weight / x.sum_load())]
+        return [o.id for o in sorted(orders.values(), key=lambda x:x.weight / x.sum_load(), reverse=True)]
 
     @classmethod
     def get_order_perm(cls, orders, mode) -> list[str]:

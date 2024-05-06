@@ -1,0 +1,74 @@
+heuristic : true
+heuristic_method:
+  - 'fbs'
+  - 'bf'
+  - 'ls'
+tabu : false
+vns: true
+ip : true
+alpha: 0.5
+seed: 20
+instance_num: 30
+draw : false
+record: true 
+neighbor_num: 2
+
+# job parameters
+job_distribution: 'uniform' #['normal', uniform]
+job_num:
+  - 20
+  - 30
+  - 40
+  - 50
+
+job_mu: 5
+job_sigma: 1.2
+job_lb: 3 
+job_ub: 7
+
+# order parameters
+order_distribution: 'normal'
+order_num:
+  - 3
+  - 5
+  - 7
+  - 9
+
+order_mu: 4
+order_sigma: 1.6
+order_lb: 2
+order_ub: 6
+
+# processor parameters
+processor_num:
+  - 3
+  - 4
+  - 5
+
+speed:
+  - 1.25
+  - 1.5
+  - 1.75
+  - 1.9
+  - 2.2
+    
+base_time:
+  - 24
+  - 22
+  - 20
+  - 18
+  - 18
+
+fixed_charge:
+  - 18
+  - 20
+  - 24
+  - 28
+  - 31
+
+unit_cost:
+  - 2
+  - 2.5
+  - 3
+  - 3.5
+  - 4

@@ -80,7 +80,7 @@ if __name__ == '__main__':
                         fig_folder =  root_path / f'{job_num}_{order_num}_{processor_num}' 
                         fig_folder.mkdir(parents=True, exist_ok=True)
 
-                    if args.ip:
+                    if args.ip and i == 0:
                         start_time = time()
                         is_optimal, obj = order_delivery_ip(jobs_load, orders_info, processors_info, args.alpha, fig_folder / 'ip.png' if draw else '')
                         if args.record:

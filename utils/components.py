@@ -261,7 +261,7 @@ class Solution():
                 
     def swap2order(self, k, l):
         new_sol = copy.deepcopy(self)
-        new_sol.orders_perm[k], new_sol.orders_perm[(k+l)%len(new_sol.orders_perm)] = new_sol.orders_perm[(k+l)%len(new_sol.orders_perm)], new_sol.orders_perm[k]
+        new_sol.orders_perm[l], new_sol.orders_perm[(k+l)%len(new_sol.orders_perm)] = new_sol.orders_perm[(k+l)%len(new_sol.orders_perm)], new_sol.orders_perm[l]
         #i = random.randint(0, len(new_sol.orders_perm)-k-1)
         #new_sol.orders_perm[i], new_sol.orders_perm[i+k] = new_sol.orders_perm[i+k], new_sol.orders_perm[i]
         return new_sol

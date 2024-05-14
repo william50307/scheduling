@@ -98,6 +98,7 @@ class VNS():
     def vns(self) -> tuple[Solution, bool]:
         best_sol = self.sol
         current_sol = self.sol
+        order_num = len(self.sol.orders_perm)
         k_max = len(self.sol.orders_perm) // 2 + 1
         k = 0
         l = 1
@@ -117,7 +118,7 @@ class VNS():
                 current_sol = best_neighbor
                 k = 0
                 l = 1
-            elif l == k_max - 1:
+            elif l == order_num - 1:
                 k += 1
                 l = 1
             else:

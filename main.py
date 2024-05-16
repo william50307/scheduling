@@ -80,17 +80,6 @@ if __name__ == '__main__':
                         fig_folder =  root_path / f'{job_num}_{order_num}_{processor_num}' 
                         fig_folder.mkdir(parents=True, exist_ok=True)
 
-                    if args.ip and i == 0:
-                        start_time = time()
-                        is_optimal, obj = order_delivery_ip(jobs_load, orders_info, processors_info, args.alpha, fig_folder / 'ip.png' if draw else '')
-                        if args.record:
-                            ip_writer.writerow({'time': time() - start_time, 
-                                                'obj': obj, 
-                                                'optimal': is_optimal, 
-                                                'proceesor_num': processor_num, 
-                                                'order_num': order_num,
-                                                'job_num': job_num})
-
                     if not args.heuristic:
                         continue                    
                     # record heuristic solution
@@ -124,10 +113,22 @@ if __name__ == '__main__':
                         max_heu_disc = max_heu
                         min_heu_disc_sol = heuristic_result[min_heu]
                         max_heu_disc_sol = heuristic_result[max_heu]
+                        saved_data = data
                         
                      
                 op, jp, hu = min_heu_disc
                 heuristic_obj = min_heu_disc_sol.getCost()
+
+                if args.ip:
+                    start_time = time()
+                    is_optimal, obj = order_delivery_ip(saved_data['jobs_load'], saved_data['orders_info'], saved_data['processors_info'], args.alpha, fig_folder / 'ip.png' if draw else '')
+                    if args.record:
+                        ip_writer.writerow({'time': time() - start_time, 
+                                            'obj': obj, 
+                                            'optimal': is_optimal, 
+                                            'proceesor_num': processor_num, 
+                                            'order_num': order_num,
+                                            'job_num': job_num})
                     
                 if args.tabu:
                     tabusearch = Tabusearch(copy.deepcopy(min_heu_disc_sol), 0.3)
